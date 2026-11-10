@@ -376,13 +376,13 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             <div class="bloque">
                 <h4>5. Procedimiento</h4>
                 <ol>
-                    <li>Parte de la posición inicial (Z = 0) o de una Z menor que 45, para no llegar al tope de 50 (mira “Variables en vivo”).</li>
-                    <li>Escoge un PWM para <b>bajar</b> (recomendado 81 ⟹ ΔPWM = −10) y un tiempo (recomendado 3 s).</li>
+                    <li>Deja la carga en la <b>posición inicial</b>: la cuerda colgando desde donde cae. En “Variables en vivo”, Z debe estar en 0.</li>
+                    <li>Escribe el <b>PWM</b> y el <b>tiempo</b>. Ya vienen puestos <b>81</b> y <b>3 s</b>, que funcionan bien: con 81 la carga baja.</li>
                     <li>Pulsa <b>▶ Grabar experimento</b>. El tambor se mueve ese tiempo y frena solo.</li>
                     <li>Con el ΔPWM y el Z₀ de los resultados, <b>calcula a mano</b> Z(t) para cada tiempo y escríbelo en la columna <b>“Tu cálculo Z(t)”</b>. La tabla muestra la diferencia con el Arduino, y en la gráfica tus valores salen como triángulos verdes.</li>
                     <li>Al final pulsa <b>👁 Ver solución de la página</b> para comparar con la solución que calcula la página.</li>
                 </ol>
-                <div class="nota">⚠️ Z tiene topes en 0 (posición inicial) y 50: si los alcanza, el modelo se satura y la recta deja de cumplirse. Si pasa, sube la carga (PWM &gt; 96) y repite.</div>
+                <div class="nota">⚠️ Si aparece un aviso rojo de “tope”, la cuerda se bajó demasiado. Sube la carga a la posición inicial y repite.</div>
             </div>
 
             <div class="bloque">
@@ -468,8 +468,8 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             <div class="bloque">
                 <h4>5. Procedimiento</h4>
                 <ol>
-                    <li>Verifica en “Variables en vivo” que q esté en 0 (reposo).</li>
-                    <li>Escoge un PWM (recomendado 81, que baja la carga ⟹ E = 3.33 V) y la duración del escalón (recomendado 5 s). E solo depende de |ΔPWM|: subir con 106 da el mismo E.</li>
+                    <li>Espera a que q esté en 0 en “Variables en vivo” (el circuito en reposo).</li>
+                    <li>Escribe el <b>PWM</b> y la <b>duración</b>. Ya vienen puestos <b>81</b> y <b>5 s</b>, que funcionan bien.</li>
                     <li>Pulsa <b>▶ Grabar experimento</b>: la página aplica E constante durante ese tiempo y frena sola.</li>
                     <li>Con el E del escalón, evalúa <b>a mano</b> tu solución de Laplace en cada tiempo y escríbela en <b>“Tu cálculo q(t)”</b>. La tabla da el error contra el Arduino, y en la gráfica tus valores salen como triángulos verdes.</li>
                     <li>Al final pulsa <b>👁 Ver solución de la página</b> para comparar con la curva de Laplace que calcula la página.</li>
@@ -563,7 +563,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                     <li>Repite con los ensayos 2, 3 y 4 (cambian PWM y tiempo). Antes de cada uno, mide la longitud de la cuerda de partida.</li>
                     <li>Revisa la columna de error: ¿qué tan buena es la predicción?</li>
                 </ol>
-                <div class="nota">⚠️ Si Z llega al tope de 50 (o vuelve a 0 al subir) el modelo se satura y esa fila no sirve. Si pasa, sube la carga y repite.</div>
+                <div class="nota">⚠️ Si aparece un aviso rojo de “tope” en un ensayo, la cuerda se bajó demasiado y esa fila no sirve. Sube la carga y repítelo.</div>
             </div>
 
             <div class="bloque">
@@ -1229,7 +1229,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             $('p1_zft').textContent = fmt(Z0 + mt * tMax, 2);
 
             const saturado = seSaturo(pts.map(p => p.y), d);
-            $('p1_aviso').innerHTML = saturado ? '<div class="aviso">⚠️ Z llegó a un tope (0 o 50) y el modelo se saturó: la recta deja de cumplirse. Sube la carga y repite.</div>' : '';
+            $('p1_aviso').innerHTML = saturado ? '<div class="aviso">⚠️ Tope: Z dejó de cambiar aunque el motor seguía andando (la cuerda se bajó demasiado). Sube la carga a la posición inicial y repite.</div>' : '';
 
             const tuyos = [];
             P1_TIEMPOS.forEach((t, i) => {
@@ -1350,7 +1350,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             });
             $('p3_k').textContent = k !== null ? fmt(k, 2) + ' cm por unidad de Z' : '—';
             $('p3_errprom').textContent = errs.length ? fmt(errs.reduce((a, b) => a + b, 0) / errs.length, 1) + ' %' : '—';
-            $('p3_aviso').innerHTML = sat.length ? `<div class="aviso">⚠️ En el/los ensayo(s) ${sat.join(', ')} Z llegó a un tope (0 o 50): el modelo se saturó y esa fila no sirve. Repítela.</div>` : '';
+            $('p3_aviso').innerHTML = sat.length ? `<div class="aviso">⚠️ En el/los ensayo(s) ${sat.join(', ')} Z dejó de cambiar (tope): esa fila no sirve. Sube la carga y repítela.</div>` : '';
             graficaP3.data.datasets[0].data = pts;
             graficaP3.data.datasets[1].data = maxH > 0 ? [{ x: 0, y: 0 }, { x: maxH * 1.1, y: maxH * 1.1 }] : [];
             graficaP3.update();
