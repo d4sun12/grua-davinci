@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Telemetría Grúa STEM - Control Dual</title>
+
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        Chart.defaults.font.family = '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+        Chart.defaults.color = '#5b6573';
+    </script>
+
+    <style>
+        /* ===================== PALETA ===================== */
+        :root {
+            --azul: #0056b3; --azul-osc: #004494; --azul-noche: #003a7a; --azul-claro: #e8f0fa;
+            --fondo: #f4f6f9; --borde: #dde3ea; --texto: #1f2933; --texto-sec: #5b6573;
+            --ambar: #ffb300; --cian: #22d3ee; --rojo: #c62828; --verde: #2e7d32;
+            --sombra: 0 1px 2px rgba(16, 24, 40, 0.04), 0 4px 14px rgba(16, 24, 40, 0.06);
+        }
+
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 0 0 40px; font-family: "Segoe UI", Roboto, sans-serif; text-align: center; background: var(--fondo); color: var(--texto); -webkit-font-smoothing: antialiased; }
+
+        button { padding: 9px 18px; font-size: 15px; font-weight: 600; margin: 6px; cursor: pointer; background: var(--azul); color: #fff; border: none; border-radius: 7px; transition: background-color .15s; }
+        button:hover { background: var(--azul-osc); }
+        button:active { transform: translateY(1px); }
+
+        .topbar { background: linear-gradient(135deg, var(--azul-noche) 0%, var(--azul) 100%); color: #fff; box-shadow: 0 2px 10px rgba(0, 58, 122, 0.25); }
+        .topbar-inner { max-width: 1200px; margin: 0 auto; padding: 18px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; text-align: left; }
+        .marca { display: flex; align-items: center; gap: 14px; }
+        .marca .logo { width: 44px; height: 44px; border-radius: 10px; background: rgba(255,255,255,0.14); display: grid; place-items: center; font-size: 24px; }
+        .marca h1 { margin: 0; font-size: 21px; font-weight: 700; }
+        .marca p { margin: 2px 0 0; font-size: 13px; opacity: 0.8; }
+        .acciones-top { display: flex; align-items: center; gap: 8px; }
+        .btn-claro { background: #fff; color: var(--azul); }
+        .btn-claro:hover { background: var(--azul-claro); }
+        .btn-borde { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.55); }
+        .btn-borde:hover { background: rgba(255,255,255,0.12); }
+        .estado-conexion { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,0.14); font-size: 13px; font-weight: 600; }
+        .estado-conexion .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--ambar); box-shadow: 0 0 0 3px rgba(255,179,0,0.25); }
+        .estado-conexion.on .punto { background: #4caf50; box-shadow: 0 0 0 3px rgba(76,175,80,0.3); }
+
+        .panel { width: calc(100% - 32px); max-width: 1200px; margin: 20px auto; padding: 24px; background: #fff; border: 1px solid var(--borde); border-radius: 14px; box-shadow: var(--sombra); }
+        .titulo-seccion { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 13px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--texto-sec); text-align: left; }
+        .titulo-seccion::before { content: ""; width: 4px; height: 16px; border-radius: 2px; background: var(--azul); }
+        
+        .control-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .control-panel { background: var(--fondo); border: 1px solid var(--borde); border-radius: 12px; padding: 16px 18px; text-align: left; }
+        .control-panel h3 { margin: 0; font-size: 16px; color: var(--texto); }
+        .control-fila { display: flex; align-items: center; gap: 14px; margin: 10px 0 6px; }
+        input[type=range] { flex: 1; accent-color: var(--azul); }
+        input[type=number] { width: 66px; padding: 6px; font-size: 16px; font-weight: 700; text-align: center; color: var(--azul); border: 1px solid var(--borde); border-radius: 7px; }
+
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+        .card { background: #fff; border: 1px solid var(--borde); border-top: 4px solid var(--azul); border-radius: 12px; padding: 14px 16px; text-align: left; }
+        .card h3 { margin: 0 0 6px; font-size: 12px; font-weight: 700; color: var(--texto-sec); }
+        .card .value { font-size: 28px; font-weight: 700; color: var(--azul); }
+        .card.c-e { border-top-color: var(--ambar); }
+        .card.c-q { border-top-color: var(--cian); }
+        .card.c-z { border-top-color: var(--verde); }
+
+        .graficas { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-top: 16px; }
+        .chart-container { padding: 14px 16px 16px; border: 1px solid var(--borde); border-radius: 12px; background: #fff; text-align: left; }
+        #grafica3D, #canvas-wrap { width: 100%; height: 380px; }
+        
+        /* Oculté la sección de autoprueba para evitar más cruces innecesarios, enfocados en manual */
+        #autoprueba { display: none; }
+
+        /* Estilos de la Guía de Laboratorio (Mantenidos) */
+        #guia { text-align: left; }
+        #guia h2 { margin: 0 0 16px; font-size: 21px; }
+        .encabezado { display: flex; gap: 12px; background: var(--fondo); padding: 14px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--borde); }
+        .tabs { display: flex; border-bottom: 1px solid var(--borde); margin: 20px 0; }
+        .tabs button { background: transparent; color: var(--texto-sec); padding: 11px 16px; border-bottom: 3px solid transparent; }
+        .tabs button.activa { color: var(--azul); border-bottom-color: var(--azul); }
+        .practica { display: none; }
+        .practica.activa { display: block; }
+        .bloque { border: 1px solid var(--borde); border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; }
+        .formula { font-size: 19px; text-align: center; background: var(--azul-claro); border-left: 4px solid var(--azul); padding: 10px; }
+        .tabla-wrap { overflow-x: auto; margin: 10px 0; }
+        table.datos { width: 100%; border-collapse: collapse; }
+        table.datos th, table.datos td { border: 1px solid var(--borde); padding: 8px; text-align: center; }
+        table.datos th { background: var(--azul); color: white; }
+        textarea { width: 100%; min-height: 56px; border: 1px solid var(--borde); border-radius: 8px; padding: 8px; }
+        /* ===================== GUÍA DE LABORATORIO ===================== */
+        #guia { text-align: left; }
+        #guia h2 { margin: 0 0 16px; font-size: 21px; font-weight: 700; color: var(--texto); }
+        .encabezado { display: flex; flex-wrap: wrap; gap: 12px 24px; background: var(--fondo); border: 1px solid var(--borde); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+        .encabezado label { font-weight: 600; font-size: 14px; color: var(--texto-sec); }
+        .encabezado input { padding: 7px 10px; border: 1px solid var(--borde); border-radius: 7px; font-size: 14px; font-family: inherit; background: #fff; }
+        .encabezado input.ancho { width: 320px; max-width: 100%; }
+
+        .tabs { display: flex; flex-wrap: wrap; gap: 2px; border-bottom: 1px solid var(--borde); margin: 20px 0 18px; }
+        .tabs button { margin: 0 0 -1px; border-radius: 7px 7px 0 0; background: transparent; color: var(--texto-sec); font-size: 14px; padding: 11px 16px; border-bottom: 3px solid transparent; }
+        .tabs button:hover { background: var(--azul-claro); color: var(--azul); }
+        .tabs button.activa { color: var(--azul); border-bottom-color: var(--azul); background: transparent; }
+
+        .practica { display: none; }
+        .practica.activa { display: block; }
+        .practica h3 { color: var(--azul); margin: 0 0 14px; font-size: 18px; }
+        .bloque { border: 1px solid var(--borde); border-radius: 12px; padding: 14px 18px; margin-bottom: 14px; background: #fff; }
+        .bloque h4 { margin: 2px 0 10px; font-size: 13px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--azul); }
+        .bloque p, .bloque li { font-size: 15px; line-height: 1.6; }
+        .formula { font-family: "Cambria Math", "Times New Roman", serif; font-size: 19px; text-align: center; background: var(--azul-claro); border-left: 4px solid var(--azul); border-radius: 0 8px 8px 0; padding: 10px; margin: 10px 0; }
+        .formula.clave { border-left-color: var(--rojo); background: #fdf2f2; font-size: 21px; }
+        .codigo { font-family: Consolas, "Cascadia Code", monospace; font-size: 13.5px; background: #1e1e1e; color: #d4d4d4; padding: 12px 16px; border-radius: 8px; white-space: pre; overflow-x: auto; margin: 10px 0; }
+        .codigo .com { color: #6a9955; }
+        .nota { background: #fff8e1; border-left: 4px solid var(--ambar); border-radius: 0 8px 8px 0; padding: 10px 14px; font-size: 14px; margin: 10px 0; }
+        .aviso { background: #fdecea; border-left: 4px solid var(--rojo); border-radius: 0 8px 8px 0; padding: 10px 14px; font-size: 14px; margin: 10px 0; }
+        .parametros { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 8px 0; font-size: 15px; align-items: center; }
+        .parametros input { width: 80px; }
+        .resultado { font-weight: 700; color: var(--azul); }
+        .resumen { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 12px 0; }
+        .resumen div { background: var(--fondo); border: 1px solid var(--borde); border-radius: 10px; padding: 10px 12px; font-size: 13px; color: var(--texto-sec); }
+        .resumen b { display: block; font-size: 19px; color: var(--azul); margin-top: 3px; font-variant-numeric: tabular-nums; }
+        .estado { font-weight: 700; color: var(--rojo); margin-left: 8px; }
+
+        .tabla-wrap { overflow-x: auto; border: 1px solid var(--borde); border-radius: 10px; margin: 10px 0; }
+        table.datos { border-collapse: collapse; width: 100%; font-size: 14px; margin: 0; }
+        table.datos th, table.datos td { border-bottom: 1px solid var(--borde); border-right: 1px solid var(--borde); padding: 8px 10px; text-align: center; }
+        table.datos tr > :last-child { border-right: none; }
+        table.datos tbody tr:last-child td { border-bottom: none; }
+        table.datos th { background: var(--azul); color: #fff; font-weight: 600; font-size: 13px; }
+        table.datos tbody tr:nth-child(even) { background: #fafbfd; }
+        table.datos td.calc { background: var(--azul-claro); font-weight: 700; color: var(--azul); font-variant-numeric: tabular-nums; }
+        table.datos input { width: 72px; font-size: 14px; padding: 4px; }
+        table.datos .sol { display: none; }
+        table.datos.ver-sol .sol { display: table-cell; background: #e8f5e9; color: #2e7d32; }
+        table.resumen-edo td { text-align: left; }
+        .ok { color: #2e7d32 !important; }
+        .mal { color: #c62828 !important; }
+        .btn-mini { padding: 7px 13px; font-size: 14px; margin: 0; white-space: nowrap; }
+        .btn-freno { background: var(--rojo); }
+        .btn-freno:hover { background: #a31f1f; }
+        .btn-sec { background: #fff; color: var(--texto-sec); border: 1px solid var(--borde); }
+        .btn-sec:hover { background: var(--fondo); color: var(--texto); }
+        .grafica-guia { position: relative; height: 300px; width: 100%; margin-top: 10px; }
+        .acciones { text-align: right; }
+        .acciones button { margin: 8px 0 0 8px; font-size: 14px; padding: 8px 14px; }
+        textarea { width: 100%; min-height: 56px; font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 8px; margin: 6px 0 8px; resize: vertical; }
+
+        @media (max-width: 900px) {
+            .control-grid, .graficas { grid-template-columns: 1fr; }
+            .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+            #grafica3D, #canvas-wrap { height: 320px; }
+        }
+        @media (max-width: 560px) {
+            .panel { width: calc(100% - 24px); padding: 16px; margin: 14px auto; }
+            .topbar-inner { padding: 14px 12px; }
+            .marca h1 { font-size: 18px; }
+            .card .value { font-size: 22px; }
+            .auto-acciones button { margin: 8px 8px 0 0; }
+        }
+
+        @media print {
+            body.imprimir-guia { background: #fff; padding: 0; }
+            body.imprimir-guia > *:not(#guia) { display: none !important; }
+            body.imprimir-guia #guia { width: 100%; border: none; box-shadow: none; margin: 0; padding: 0; }
+            body.imprimir-guia .tabs,
+            body.imprimir-guia .no-print,
+            body.imprimir-guia .no-csv { display: none !important; }
+            body.imprimir-guia .bloque { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="topbar">
+        <div class="topbar-inner">
+            <div class="marca">
+                <div class="logo">🏗️</div>
+                <div>
+                    <h1>Panel de Control STEM · Grúa Dual</h1>
+                    <p>Grúa didáctica Da Vinci · Telemetría Web Serial y analogía RLC</p>
+                </div>
+            </div>
+            <div class="acciones-top">
+                <span class="estado-conexion" id="estadoConexion"><span class="punto"></span><span id="estadoTexto">Desconectado</span></span>
+                <button class="btn-claro" onclick="conectarSerial()">🔌 Conectar Arduino</button>
+                <button class="btn-borde" onclick="fijarCero()">🎯 Fijar Origen (0,0,0)</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="panel">
+        <h2 class="titulo-seccion">Control de la grúa</h2>
+        <div class="control-grid">
+            <div class="control-panel">
+                <h3>1. Giro de la Base (X, Y)</h3>
+                <div class="control-fila">
+                    <input type="range" id="sliderBase" min="10" max="170" value="90">
+                    <input type="number" id="numBase" min="10" max="170" value="90">
+                </div>
+                <p>Ángulo Base: <strong id="val-base-ui">90</strong>°</p>
+            </div>
+            <div class="control-panel">
+                <h3>2. Izar Cuerda (Eje Z)</h3>
+                <div class="control-fila">
+                    <input type="range" id="sliderTambor" min="60" max="120" value="93">
+                    <input type="number" id="numTambor" min="60" max="120" value="93">
+                </div>
+                <p>Señal Tambor: <strong id="val-tambor-ui">93</strong></p>
+            </div>
+        </div>
+
+        <h2 class="titulo-seccion">Telemetría en tiempo real</h2>
+        <div class="metrics-grid">
+            <div class="card c-e"><h3>Voltaje (E)</h3><div class="value" id="outE">0.00 V</div></div>
+            <div class="card c-q"><h3>Carga (q)</h3><div class="value" id="outQ">0.00</div></div>
+            <div class="card"><h3>Giro Base (θ)</h3><div class="value" id="outBase">0.0°</div></div>
+            <div class="card c-z"><h3>Elevación (Z)</h3><div class="value" id="outZ">0.00</div></div>
+        </div>
+
+        <div class="graficas">
+            <div class="chart-container">
+                <h3 class="titulo-grafica">Cinemática espacial (3D)</h3>
+                <div id="grafica3D"></div>
+            </div>
+            <div class="chart-container">
+                <h3 class="titulo-grafica">Comportamiento eléctrico RLC (Et / q)</h3>
+                <div id="canvas-wrap"><canvas id="realtimeChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!--          GUÍA DE LABORATORIO – ECUACIONES DIFERENCIALES              -->
+    <!-- =================================================================== -->
+    <div class="panel" id="guia">
+        <h2>📘 Guía de Laboratorio – Ecuaciones Diferenciales en la Grúa</h2>
+
+        <div class="encabezado">
+            <label>Grupo: <input type="text" data-save="grupo" style="width:80px"></label>
+            <label>Integrantes: <input type="text" data-save="integrantes" class="ancho"></label>
+            <label>Fecha: <input type="date" data-save="fecha"></label>
+        </div>
+
+        <!-- ======== VARIABLES EN VIVO (siempre visibles arriba) ======== -->
+        <div class="bloque" id="vars-vivo">
+            <h4>Variables del modelo en vivo</h4>
+            <p>Estas son las magnitudes que intervienen en las dos prácticas. Se actualizan solas cuando la grúa está conectada: mueve el slider del tambor y mira cómo varía cada una.</p>
+            <div class="tabla-wrap">
+                <table class="datos resumen-edo">
+                    <thead><tr><th>Variable</th><th>¿Qué es?</th><th>¿Cómo se obtiene?</th><th>Valor ahora</th><th>Cómo varía</th></tr></thead>
+                    <tbody>
+                        <tr><td><b>PWM</b></td><td>Señal que mandas al tambor (slider)</td><td>La eliges tú (60–120)</td><td class="calc" id="v_pwm">—</td><td>Es la entrada; 91–96 es banda muerta (no se mueve)</td></tr>
+                        <tr><td><b>ΔPWM</b></td><td>Qué tan lejos estás de la banda muerta</td><td>Se calcula: PWM − 96 (si &gt; 96) o PWM − 91 (si &lt; 91)</td><td class="calc" id="v_dpwm">—</td><td>Más lejos de la banda muerta ⟹ mayor |ΔPWM|</td></tr>
+                        <tr><td><b>E</b> (V)</td><td>Voltaje que entra al circuito RLC</td><td>Lo calcula el Arduino: E = |ΔPWM|/15·5</td><td class="calc" id="v_E">—</td><td id="t_E">—</td></tr>
+                        <tr><td><b>q</b></td><td>Carga del circuito (solución de la EDO RLC)</td><td>Lo calcula el Arduino con Euler cada 0.1 s</td><td class="calc" id="v_q">—</td><td id="t_q">—</td></tr>
+                        <tr><td><b>Z</b></td><td>Altura de la carga (solución de dZ/dt)</td><td>Lo calcula el Arduino con Euler cada 0.1 s</td><td class="calc" id="v_Z">—</td><td id="t_Z">—</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="grafica-guia" style="height:220px"><canvas id="graficaVivo"></canvas></div>
+        </div>
+
+        <div class="tabs">
+            <button class="activa" data-tab="p0">Introducción</button>
+            <button data-tab="p1">Práctica 1 · EDO de 1er orden (Z)</button>
+            <button data-tab="p2">Práctica 2 · EDO de 2º orden con Laplace (RLC)</button>
+            <button data-tab="p3">Práctica 3 · Altura teórica vs. experimental</button>
+        </div>
+
+        <!-- ======================= INTRODUCCIÓN ======================= -->
+        <section class="practica activa" id="p0">
+            <h3>¿Dónde están las ecuaciones diferenciales en la grúa?</h3>
+
+            <div class="bloque">
+                <h4>Resumen</h4>
+                <p>Una <b>ecuación diferencial (EDO)</b> relaciona una función con sus derivadas. El Arduino de la grúa resuelve dos EDO en tiempo real, y en esta guía se comprueba que sí:</p>
+                <div class="tabla-wrap">
+                    <table class="datos resumen-edo">
+                        <thead><tr><th>Fenómeno</th><th>EDO</th><th>Tipo</th><th>Cómo se resuelve</th><th>Práctica</th></tr></thead>
+                        <tbody>
+                            <tr><td>Elevación de la carga (Z)</td><td>dZ/dt = −0.1 · ΔPWM</td><td>1er orden, separable</td><td>Integrando a ambos lados</td><td>1</td></tr>
+                            <tr><td>Circuito RLC (q)</td><td>q'' + 2q' + 2q = E</td><td>2º orden, no homogénea</td><td>Transformada de Laplace</td><td>2</td></tr>
+                            <tr><td>Altura real de la carga</td><td>Z(t) de la práctica 1 + escala en cm</td><td>Modelo vs. medición</td><td>Se calibra con un ensayo y se predice con los demás</td><td>3</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="bloque">
+                <h4>¿Cómo se demuestra?</h4>
+                <ol>
+                    <li>Se resuelve la EDO <b>a mano</b> (solución analítica).</li>
+                    <li>La página <b>graba</b> lo que el Arduino calcula durante el experimento.</li>
+                    <li>Se dibujan las dos curvas juntas. Si coinciden, la grúa está resolviendo la EDO.</li>
+                </ol>
+                <p>El Arduino resuelve las EDO con pasos pequeños de Δt = 0.1 s (método de Euler: “valor nuevo = valor viejo + derivada · Δt”):</p>
+<div class="codigo"><span class="com">// EDO del RLC:  L·q'' + R·q' + q/C = E</span>
+float d2q = (Et - (R * dq) - ((1.0 / C) * q)) / L;   <span class="com">// despeja q''</span>
+dq += d2q * dt;
+q  += dq  * dt;
+
+<span class="com">// EDO de la elevación:  dZ/dt = -0.1·ΔPWM</span>
+elevacionZ += (diferenciaVel * -0.01);</div>
+            </div>
+        </section>
+
+        <!-- ======================= PRÁCTICA 1 ======================= -->
+        <section class="practica" id="p1">
+            <h3>Práctica 1 · EDO de primer orden: elevación de la carga</h3>
+
+            <div class="bloque">
+                <h4>1. Competencia</h4>
+                <p>Resolver una EDO de primer orden por separación de variables y verificar la solución con datos del sistema real.</p>
+            </div>
+
+            <div class="bloque">
+                <h4>2. Objetivos</h4>
+                <ul>
+                    <li>Resolver la EDO dZ/dt = −0.1·ΔPWM con una condición inicial.</li>
+                    <li>Comparar la solución con los valores de Z que calcula el Arduino.</li>
+                </ul>
+            </div>
+
+            <div class="bloque">
+                <h4>3. Marco teórico</h4>
+                <p>La velocidad de la carga es la derivada de su altura Z. En el modelo, esa velocidad es proporcional a ΔPWM:</p>
+                <div class="formula clave">dZ/dt = −0.1 · ΔPWM</div>
+                <p>Es de <b>variables separables</b>. Si ΔPWM es constante: dZ = −0.1·ΔPWM·dt, se integra y queda</p>
+                <div class="formula clave">Z(t) = Z₀ − 0.1 · ΔPWM · t</div>
+                <p>Z₀ es la condición inicial (Z en t = 0). La solución es una <b>recta</b> y su pendiente es la velocidad.</p>
+            </div>
+
+            <div class="bloque">
+                <h4>4. Materiales</h4>
+                <ul><li>Grúa conectada a esta página.</li></ul>
+            </div>
+
+            <div class="bloque">
+                <h4>5. Procedimiento</h4>
+                <ol>
+                    <li>Mira en “Variables en vivo” que Z tenga un valor entre −45 y −5 (para que no llegue a un tope).</li>
+                    <li>Escoge un PWM (recomendado 106) y un tiempo (recomendado 3 s).</li>
+                    <li>Pulsa <b>▶ Grabar experimento</b>. El tambor se mueve ese tiempo y frena solo.</li>
+                    <li>Compara la tabla y la gráfica: puntos = Arduino, línea = tu solución.</li>
+                </ol>
+                <div class="nota">⚠️ Si Z llega a 0 o a −50 el modelo se satura (topes). Si pasa, pulsa “Fijar origen” o cambia el sentido y repite.</div>
+            </div>
+
+            <div class="bloque">
+                <h4>6. Datos y resultados</h4>
+                <div class="parametros">
+                    <label>PWM: <input type="number" min="60" max="120" data-save="p1_pwm" value="106"></label>
+                    <label>Tiempo de movimiento (s): <input type="number" min="0.5" max="10" step="0.5" data-save="p1_tmov" value="3"></label>
+                    <span class="no-print">
+                        <button class="btn-mini" onclick="experimentoP1()">▶ Grabar experimento</button>
+                        <button class="btn-mini btn-freno" onclick="cancelarExperimento()">⏹ Detener</button>
+                        <span class="estado" id="p1_estado"></span>
+                    </span>
+                </div>
+                <div id="p1_aviso"></div>
+                <div class="resumen">
+                    <div>ΔPWM<b id="p1_delta">—</b></div>
+                    <div>Pendiente teórica (−0.1·ΔPWM)<b id="p1_mt">—</b></div>
+                    <div>Z₀ (condición inicial)<b id="p1_z0">—</b></div>
+                    <div>Z final del Arduino<b id="p1_zf">—</b></div>
+                    <div>Z final teórico<b id="p1_zft">—</b></div>
+                </div>
+                <div class="tabla-wrap">
+                    <table class="datos" id="tabla-p1">
+                        <thead><tr><th>t (s)</th><th>Z del Arduino</th><th>Z(t) = Z₀ − 0.1·ΔPWM·t</th><th>Diferencia</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="grafica-guia"><canvas id="graficaP1"></canvas></div>
+                <div class="acciones no-print">
+                    <button class="btn-sec" onclick="descargarCSV('tabla-p1','practica1_edo_primer_orden')">⬇ Descargar CSV</button>
+                </div>
+            </div>
+
+            <div class="bloque">
+                <h4>7. Informe</h4>
+                <ol>
+                    <li>Resuelve paso a paso dZ/dt = −0.1·ΔPWM con Z(0) = Z₀. ¿Por qué la solución es una recta?
+                        <textarea data-save="p1_q1"></textarea></li>
+                    <li>¿Coinciden los puntos del Arduino con tu solución? ¿Qué pasa con la pendiente si duplicas ΔPWM?
+                        <textarea data-save="p1_q2"></textarea></li>
+                    <li>Conclusión:
+                        <textarea data-save="p1_q3"></textarea></li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- ======================= PRÁCTICA 2 ======================= -->
+        <section class="practica" id="p2">
+            <h3>Práctica 2 · EDO de segundo orden con Laplace: circuito RLC</h3>
+
+            <div class="bloque">
+                <h4>1. Competencia</h4>
+                <p>Resolver una EDO lineal de segundo orden con la transformada de Laplace y verificar la solución con datos del sistema real.</p>
+            </div>
+
+            <div class="bloque">
+                <h4>2. Objetivos</h4>
+                <ul>
+                    <li>Resolver q'' + 2q' + 2q = E con Laplace (condiciones iniciales en cero y E constante).</li>
+                    <li>Comparar la solución con la carga q que calcula el Arduino.</li>
+                </ul>
+            </div>
+
+            <div class="bloque">
+                <h4>3. Marco teórico</h4>
+                <p>El movimiento del tambor produce un voltaje E = |ΔPWM|/15·5 que excita un circuito RLC en serie, con L = 1, R = 2 y C = 0.5:</p>
+                <div class="formula clave">L·q'' + R·q' + q/C = E &nbsp;⟹&nbsp; q'' + 2q' + 2q = E</div>
+                <p><b>Paso 1 · Laplace</b> con q(0) = 0, q'(0) = 0 y E constante (L{E} = E/s):</p>
+                <div class="formula">s²Q + 2sQ + 2Q = E/s &nbsp;⟹&nbsp; Q(s) = E / [ s (s² + 2s + 2) ]</div>
+                <p><b>Paso 2 · Fracciones parciales</b> (completando cuadrados s²+2s+2 = (s+1)²+1):</p>
+                <div class="formula">Q(s) = (E/2) · [ 1/s − (s+1)/((s+1)²+1) − 1/((s+1)²+1) ]</div>
+                <p><b>Paso 3 · Transformada inversa</b>:</p>
+                <div class="formula clave">q(t) = (E/2) · [ 1 − e<sup>−t</sup>(cos t + sen t) ]</div>
+                <p>Predicciones: valor final <b>E/2</b>, y un pequeño pico (≈ 4.3 % por encima) en <b>t = π ≈ 3.14 s</b> antes de estabilizarse.</p>
+            </div>
+
+            <div class="bloque">
+                <h4>4. Materiales</h4>
+                <ul><li>Grúa conectada a esta página.</li></ul>
+            </div>
+
+            <div class="bloque">
+                <h4>5. Procedimiento</h4>
+                <ol>
+                    <li>Verifica en “Variables en vivo” que q esté en 0 (reposo).</li>
+                    <li>Escoge un PWM (recomendado 106 ⟹ E = 3.33 V) y la duración del escalón (recomendado 5 s).</li>
+                    <li>Pulsa <b>▶ Grabar experimento</b>: la página aplica E constante durante ese tiempo y frena sola.</li>
+                    <li>Compara la tabla y la gráfica: puntos = Arduino, línea = solución con Laplace.</li>
+                </ol>
+            </div>
+
+            <div class="bloque">
+                <h4>6. Datos y resultados</h4>
+                <div class="parametros">
+                    <label>PWM: <input type="number" min="60" max="120" data-save="p2_pwm" value="106"></label>
+                    <label>Escalón (s): <input type="number" min="1" max="10" step="0.5" data-save="p2_tesc" value="5"></label>
+                    <span class="no-print">
+                        <button class="btn-mini" onclick="experimentoP2()">▶ Grabar experimento</button>
+                        <button class="btn-mini btn-freno" onclick="cancelarExperimento()">⏹ Detener</button>
+                        <span class="estado" id="p2_estado"></span>
+                    </span>
+                </div>
+                <div class="resumen">
+                    <div>E del escalón<b id="p2_E">—</b></div>
+                    <div>q final teórico (E/2)<b id="p2_qft">—</b></div>
+                    <div>q final del Arduino<b id="p2_qfm">—</b></div>
+                    <div>Pico teórico (t = π s)<b id="p2_pt">—</b></div>
+                    <div>Pico del Arduino<b id="p2_pm">—</b></div>
+                </div>
+                <div class="tabla-wrap">
+                    <table class="datos" id="tabla-p2">
+                        <thead><tr><th>t (s)</th><th>q del Arduino</th><th>q(t) = (E/2)[1 − e<sup>−t</sup>(cos t + sen t)]</th><th>Error (%)</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="grafica-guia"><canvas id="graficaP2"></canvas></div>
+                <div class="acciones no-print">
+                    <button class="btn-sec" onclick="descargarCSV('tabla-p2','practica2_edo_rlc_laplace')">⬇ Descargar CSV</button>
+                </div>
+            </div>
+
+            <div class="bloque">
+                <h4>7. Informe</h4>
+                <ol>
+                    <li>Repite la solución con Laplace (pasos 1 a 3) con tus palabras. ¿Qué papel juegan q(0) y q'(0)?
+                        <textarea data-save="p2_q1"></textarea></li>
+                    <li>¿Coincide q del Arduino con tu solución? ¿Se ve el pico en t ≈ π? Explica por qué hay pequeñas diferencias (pista: Δt = 0.1 s).
+                        <textarea data-save="p2_q2"></textarea></li>
+                    <li>Conclusión:
+                        <textarea data-save="p2_q3"></textarea></li>
+                </ol>
+            </div>
+        </section>
+
+        <!-- ======================= PRÁCTICA 3 ======================= -->
+        <section class="practica" id="p3">
+            <h3>Práctica 3 · Altura teórica vs. experimental (todas las variables juntas)</h3>
+
+            <div class="bloque">
+                <h4>1. Competencia</h4>
+                <p>Usar la solución de una EDO para predecir una magnitud física, medirla en el sistema real y analizar el error entre teoría y experimento.</p>
+            </div>
+
+            <div class="bloque">
+                <h4>2. Objetivos</h4>
+                <ul>
+                    <li>Calcular la altura teórica con la solución de dZ/dt = −0.1·ΔPWM.</li>
+                    <li>Medir con regla la altura real que sube la carga y compararla con la predicha.</li>
+                    <li>Relacionar en cada ensayo todas las variables: PWM, ΔPWM, E, q, Z y el ángulo de la base.</li>
+                </ul>
+            </div>
+
+            <div class="bloque">
+                <h4>3. Marco teórico</h4>
+                <p>De la práctica 1, el modelo recorre en unidades de Z:</p>
+                <div class="formula">|ΔZ| = 0.1 · |ΔPWM| · t</div>
+                <p>Las unidades del modelo no son centímetros, así que se necesita una <b>escala k</b> (cm por unidad de Z). Se obtiene en el <b>ensayo 1 (calibración)</b>:</p>
+                <div class="formula clave">k = h<sub>medida 1</sub> / |ΔZ<sub>1</sub>| &nbsp;&nbsp;⟹&nbsp;&nbsp; h<sub>teórica</sub> = k · 0.1 · |ΔPWM| · t</div>
+                <p>Con k fija, se <b>predice</b> la altura de los ensayos 2, 3 y 4 y se compara con lo medido. Además, en cada ensayo el Arduino calcula E = |ΔPWM|/15·5 y la carga q del RLC; la teoría de la práctica 2 da q(t) = (E/2)[1 − e<sup>−t</sup>(cos t + sen t)].</p>
+            </div>
+
+            <div class="bloque">
+                <h4>4. Materiales</h4>
+                <ul>
+                    <li>Grúa conectada a esta página.</li>
+                    <li>Regla o flexómetro y cinta para marcar la posición de la carga.</li>
+                </ul>
+            </div>
+
+            <div class="bloque">
+                <h4>5. Procedimiento</h4>
+                <ol>
+                    <li>Mide y marca con cinta la altura inicial de la carga. Espera a que q esté en 0 (mira “Variables en vivo”).</li>
+                    <li>Ensayo 1: pulsa <b>▶</b>. Al terminar mide cuánto subió/bajó la carga y escríbelo en “h medida”.</li>
+                    <li>Repite con los ensayos 2, 3 y 4 (cambian PWM y tiempo). Antes de cada uno, vuelve a marcar la posición inicial.</li>
+                    <li>Revisa la columna de error: ¿qué tan buena es la predicción?</li>
+                </ol>
+                <div class="nota">⚠️ Si Z llega a 0 o −50 el modelo se satura y esa fila no sirve. Si pasa, “Fijar origen” o cambia el sentido y repite.</div>
+            </div>
+
+            <div class="bloque">
+                <h4>6. Datos y resultados</h4>
+                <div id="p3_aviso"></div>
+                <div class="resumen">
+                    <div>Escala k (ensayo 1)<b id="p3_k">—</b></div>
+                    <div>Error promedio (ensayos 2–4)<b id="p3_errprom">—</b></div>
+                </div>
+                <div class="tabla-wrap">
+                    <table class="datos" id="tabla-p3">
+                        <thead><tr>
+                            <th>Ensayo</th><th>PWM</th><th>t (s)</th><th class="no-csv"></th>
+                            <th>ΔPWM</th><th>E (V)</th><th>|ΔZ| Arduino</th><th>|ΔZ| teórico</th>
+                            <th>q Arduino</th><th>q teórica</th><th>Base (°)</th>
+                            <th>h teórica (cm)</th><th>h medida (cm)</th><th>Error (%)</th>
+                        </tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="grafica-guia"><canvas id="graficaP3"></canvas></div>
+                <div class="acciones no-print">
+                    <button class="btn-sec" onclick="descargarCSV('tabla-p3','practica3_altura_teorica_vs_experimental')">⬇ Descargar CSV</button>
+                </div>
+            </div>
+
+            <div class="bloque">
+                <h4>7. Informe</h4>
+                <ol>
+                    <li>Escribe cómo obtuviste k y calcula a mano la altura teórica de un ensayo.
+                        <textarea data-save="p3_q1"></textarea></li>
+                    <li>¿Qué tan cerca quedó la altura medida de la teórica? Da al menos dos causas del error (holgura de la cuerda, el tambor se enrolla en capas, la medición con regla, etc.).
+                        <textarea data-save="p3_q2"></textarea></li>
+                    <li>¿Cómo cambian E y q cuando aumenta |ΔPWM|? ¿Y la altura? ¿Cuál de las dos depende del tiempo y cuál del valor final?
+                        <textarea data-save="p3_q3"></textarea></li>
+                    <li>Conclusión:
+                        <textarea data-save="p3_q4"></textarea></li>
+                </ol>
+            </div>
+        </section>
+
+        <div class="acciones no-print" style="border-top: 1px solid #ccc; padding-top: 8px;">
+            <button class="btn-sec" onclick="borrarDatosGuia()">🗑 Borrar datos de la guía</button>
+            <button onclick="imprimirGuia()">🖨 Imprimir / Guardar PDF (pestaña actual)</button>
+        </div>
+    </div>
+
+    <!-- ===================== JAVASCRIPT PRINCIPAL ===================== -->
+    <script>
+        let port, reader, writer;
+        let offsetZ = 0, offsetBase = 0;
+        let lecturaCrudaZ = 0, lecturaCrudaBase = 0;
+        let ultimoE = null, ultimoQ = null;   // últimos valores de telemetría (para la guía)
+        const R_BRAZO = 10;
+        let xArr = [], yArr = [], zArr = [];
+        let sampleCounter = 0;
+
+        const TAMBOR_FRENO = 93;
+        const encoder = new TextEncoder();
+        let ultimoEnvio = 0;
+        let envioPendiente = null;
+
+        function fijarCero() {
+            if (!Number.isFinite(lecturaCrudaZ) || !Number.isFinite(lecturaCrudaBase)) { alert('Aún no llega telemetría válida del Arduino.'); return; }
+            offsetZ = lecturaCrudaZ;
+            offsetBase = lecturaCrudaBase;
+            xArr = []; yArr = []; zArr = [];
+            Plotly.update('grafica3D', { x: [[0]], y: [[0]], z: [[0]] });
+            alert("¡Sistema tarado exitosamente en (0,0,0)!");
+        }
+
+        // ====== 1. SISTEMA DE ENVÍO DIRECTO (SIN RETRASOS NI CRUCES) ======
+        function enviarComandos() {
+            if (!writer) return;
+            
+            // Limitador a 20 FPS para no saturar al Arduino
+            // Si llega muy seguido, no se descarta: se manda al terminar los 50 ms (así el freno al soltar nunca se pierde)
+            const ahora = Date.now();
+            if (ahora - ultimoEnvio < 50) {
+                if (!envioPendiente) envioPendiente = setTimeout(() => { envioPendiente = null; enviarComandos(); }, 50 - (ahora - ultimoEnvio));
+                return;
+            }
+            ultimoEnvio = ahora;
+
+            let valBase = document.getElementById('sliderBase').value;
+            let valTambor = document.getElementById('sliderTambor').value;
+            
+            document.getElementById('numBase').value = valBase;
+            document.getElementById('val-base-ui').innerText = valBase;
+            document.getElementById('numTambor').value = valTambor;
+            document.getElementById('val-tambor-ui').innerText = valTambor;
+
+            // Formato exacto: "90,93\n"
+            const paquete = valBase + "," + valTambor + "\n";
+            writer.write(encoder.encode(paquete)).catch(e => console.log(e));
+        }
+
+        // Listeners para los sliders
+        document.getElementById('sliderBase').addEventListener('input', enviarComandos);
+        document.getElementById('numBase').addEventListener('input', () => {
+            document.getElementById('sliderBase').value = document.getElementById('numBase').value;
+            enviarComandos();
+        });
+        
+        document.getElementById('sliderTambor').addEventListener('input', enviarComandos);
+        document.getElementById('numTambor').addEventListener('input', () => {
+            document.getElementById('sliderTambor').value = document.getElementById('numTambor').value;
+            enviarComandos();
+        });
+
+        // Freno automático al soltar el ratón
+        function resetTambor() {
+            document.getElementById('sliderTambor').value = TAMBOR_FRENO;
+            enviarComandos();
+        }
+        let arrastrandoTambor = false;
+        document.getElementById('sliderTambor').addEventListener('pointerdown', () => { arrastrandoTambor = true; });
+        window.addEventListener('pointerup', () => { if (arrastrandoTambor) { arrastrandoTambor = false; resetTambor(); } });
+
+        // Heartbeat para que el Arduino no se detenga por seguridad
+        setInterval(() => {
+            if (writer) {
+                ultimoEnvio = 0; // Forzamos el envío
+                enviarComandos();
+            }
+        }, 500);
+
+        // ====== 2. GRÁFICAS ======
+        let layout3D = {
+            margin: { l: 0, r: 0, b: 0, t: 0 },
+            showlegend: false,
+            scene: {
+                xaxis: { title: 'X', range: [-15, 15] },
+                yaxis: { title: 'Y', range: [-15, 15] },
+                zaxis: { title: 'Z', range: [-15, 15] }
+            }
+        };
+        Plotly.newPlot('grafica3D', [{ x: [0], y: [0], z: [0], mode: 'lines+markers', marker: { size: 6, color: 'red' }, type: 'scatter3d' }], layout3D, {responsive: true});
+
+        const ctx = document.getElementById('realtimeChart').getContext('2d');
+        const realtimeChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'Voltaje Et (V)', data: [], borderColor: '#ffb300', tension: 0.2 },
+                { label: 'Carga q', data: [], borderColor: '#22d3ee', tension: 0.2 }
+            ]},
+            options: { responsive: true, maintainAspectRatio: false, animation: false, normalized: true,
+                       elements: { point: { radius: 0 } } }
+        });
+
+        // ====== RENDER AGRUPADO ======
+        // La telemetría solo guarda datos; los gráficos se redibujan como mucho cada ~100 ms
+        // y el 3D (WebGL, el más pesado) solo cuando está visible en pantalla.
+        let ultimaLectura = null, renderPendiente = false, ultimoRender = 0;
+        const visibles = new Set();
+        const obsVis = new IntersectionObserver(ents => ents.forEach(e => e.isIntersecting ? visibles.add(e.target.id) : visibles.delete(e.target.id)));
+        ['grafica3D', 'realtimeChart', 'graficaVivo'].forEach(id => { const el = document.getElementById(id); if (el) obsVis.observe(el); });
+        function pedirRender() {
+            if (renderPendiente) return;
+            renderPendiente = true;
+            requestAnimationFrame(dibujar);
+        }
+        function dibujar(ts) {
+            if (ts - ultimoRender < 100) { requestAnimationFrame(dibujar); return; }
+            renderPendiente = false;
+            ultimoRender = ts;
+            if (ultimaLectura) {
+                const L = ultimaLectura;
+                document.getElementById('outE').textContent = L.E.toFixed(2) + " V";
+                document.getElementById('outQ').textContent = L.Q.toFixed(2);
+                document.getElementById('outZ').textContent = L.Z.toFixed(2);
+                document.getElementById('outBase').textContent = L.B.toFixed(1) + "°";
+            }
+            if (visibles.has('grafica3D')) Plotly.restyle('grafica3D', { x: [xArr.slice()], y: [yArr.slice()], z: [zArr.slice()] });
+            if (visibles.has('realtimeChart')) realtimeChart.update('none');
+            if (typeof dibujarVivo === 'function') dibujarVivo(visibles.has('graficaVivo'));
+        }
+
+        // ====== VIGILANCIA DE TELEMETRÍA ======
+        // El Arduino manda datos cada 0.1 s. Si deja de mandar o se reinicia, casi siempre es
+        // porque el servo de la base bajó el voltaje (alimentación insuficiente), no lag de la página.
+        let ultimoDato = 0, reinicios = 0;
+        setInterval(() => {
+            if (!writer) return;
+            const txt = document.getElementById('estadoTexto');
+            const sinDatos = ultimoDato && Date.now() - ultimoDato > 1500;
+            if (sinDatos) txt.textContent = '⚠ Sin datos del Arduino';
+            else if (reinicios > 1) txt.textContent = `Conectado · ⚠ ${reinicios - 1} reinicio(s)`;
+            else txt.textContent = 'Conectado';
+            document.getElementById('estadoConexion').classList.toggle('on', !sinDatos);
+        }, 500);
+
+        // ====== 3. CONEXIÓN Y LECTURA ESTABLE ======
+        async function conectarSerial() {
+            if (port) { alert('Ya está conectado.'); return; }
+            try {
+                port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 9600 });
+                writer = port.writable.getWriter();
+                reinicios = 0; ultimoDato = Date.now();
+                
+                document.getElementById('estadoConexion').classList.add('on');
+                document.getElementById('estadoTexto').textContent = 'Conectado';
+
+                const textDecoder = new TextDecoderStream();
+                port.readable.pipeTo(textDecoder.writable);
+                reader = textDecoder.readable.getReader();
+
+                let buffer = "";
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += value;
+                    let lineas = buffer.split('\n');
+                    
+                    for (let i = 0; i < lineas.length - 1; i++) {
+                        let linea = lineas[i].trim();
+                        if (linea === "") continue;
+                        ultimoDato = Date.now();
+                        if (linea === "INICIO") {
+                            reinicios++;
+                            if (reinicios > 1) console.warn('El Arduino se reinició (posible caída de voltaje al mover los servos).');
+                            continue;
+                        }
+
+                        let datos = linea.split(',');
+                        // Solo líneas con 4 números válidos (las cortadas o con basura se ignoran: adiós NaN)
+                        const nums = datos.map(Number);
+                        if (datos.length === 4 && datos.every(d => d.trim() !== '') && nums.every(Number.isFinite)) {
+                          try {
+                            let E = nums[0];
+                            let Q = nums[1];
+                            lecturaCrudaZ = nums[2];
+                            lecturaCrudaBase = nums[3];
+                            ultimoE = E; ultimoQ = Q;
+                            registrarMuestra(E, Q, lecturaCrudaZ);   // guía: variables en vivo y grabación de experimentos
+
+                            let Z_relativo = lecturaCrudaZ - offsetZ;
+                            let Base_relativa = lecturaCrudaBase - offsetBase;
+
+                            ultimaLectura = { E, Q, Z: Z_relativo, B: Base_relativa };
+
+                            let rad = lecturaCrudaBase * (Math.PI / 180);
+                            let X = R_BRAZO * Math.cos(rad);
+                            let Y = R_BRAZO * Math.sin(rad);
+
+                            xArr.push(X); yArr.push(Y); zArr.push(Z_relativo);
+                            if (xArr.length > 50) { xArr.shift(); yArr.shift(); zArr.shift(); }
+
+                            sampleCounter++;
+                            if (realtimeChart.data.labels.length > 50) {
+                                realtimeChart.data.labels.shift();
+                                realtimeChart.data.datasets[0].data.shift();
+                                realtimeChart.data.datasets[1].data.shift();
+                            }
+                            realtimeChart.data.labels.push(sampleCounter);
+                            realtimeChart.data.datasets[0].data.push(E);
+                            realtimeChart.data.datasets[1].data.push(Q);
+                            pedirRender();   // el dibujo se agrupa (máx. ~10 fps) en vez de redibujar por cada línea
+                          } catch (e) { console.error('Error procesando telemetría:', e); }
+                        }
+                    }
+                    buffer = lineas[lineas.length - 1];
+                }
+            } catch (error) {
+                console.error("Desconectado o error:", error);
+                port = null; writer = null; reader = null;
+                document.getElementById('estadoConexion').classList.remove('on');
+                document.getElementById('estadoTexto').textContent = 'Desconectado';
+            }
+        }
+
+        // =====================================================================
+        //            GUÍA DE LABORATORIO – ECUACIONES DIFERENCIALES
+        // =====================================================================
+        const DT = 0.1;                                  // paso de Euler del Arduino (s)
+        const RLC = { L: 1.0, R: 2.0, C: 0.5 };          // mismos valores que el Arduino
+        const ALFA = RLC.R / (2 * RLC.L);                // 1
+        const W0 = 1 / Math.sqrt(RLC.L * RLC.C);         // √2
+        const WD = Math.sqrt(W0 * W0 - ALFA * ALFA);     // 1  (subamortiguado)
+        const P1_TIEMPOS = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0];
+        const P2_TIEMPOS = [0.5, 1.0, 2.0, Math.PI, 4.0, 5.0];
+
+        const $ = (id) => document.getElementById(id);
+        const num = (el) => { const v = parseFloat(el ? el.value : ''); return isNaN(v) ? null : v; };
+        const fmt = (v, d = 2) => (v === null || v === undefined || !isFinite(v)) ? '—' : v.toFixed(d);
+        const campo = (k) => document.querySelector(`[data-save="${k}"]`);
+
+        function deltaPWM(p) {
+            if (p > 96) return p - 96;   // sube
+            if (p < 91) return p - 91;   // baja
+            return 0;                    // banda muerta
+        }
+
+        // Solución analítica (Laplace) del escalón desde el reposo: q = C·E[1 − e^{−t}(cos t + sen t)]
+        function qEscalon(t, E) {
+            return RLC.C * E * (1 - Math.exp(-ALFA * t) * (Math.cos(WD * t) + (ALFA / WD) * Math.sin(WD * t)));
+        }
+
+        // ---- Controles de la grúa ----
+        function conectado() {
+            if (!writer) { alert('Primero conecta el Arduino con el botón 🔌 Conectar Arduino.'); return false; }
+            return true;
+        }
+        function setTambor(pwm) {
+            $('sliderTambor').value = pwm;
+            $('numTambor').value = pwm;
+            enviarComandos();
+        }
+
+        // ---- Prueba automática de los dos servos ----
+        // Usa los mismos campos y el mismo envío serial que los sliders (no toca el control).
+        const AUTO_TAMBOR = [[106, 15], [TAMBOR_FRENO, 10], [80, 15], [TAMBOR_FRENO, 10]];  // [PWM, ticks de 0.1 s]
+        let autoTimer = null, autoTick = 0, autoBase = 90, autoDir = 1;
+        function setBase(v) {
+            $('sliderBase').value = v; $('numBase').value = v;
+            $('val-base-ui').innerText = v;
+            enviarComandos();
+        }
+        function iniciarAutoprueba() {
+            if (autoTimer) return;
+            if (!conectado()) return;
+            autoTick = 0; autoBase = parseInt($('numBase').value, 10) || 90; autoDir = 1;
+            $('auto_estado').textContent = 'en marcha…';
+            autoTimer = setInterval(() => {
+                autoBase += autoDir * 2;                              // 20°/s
+                if (autoBase >= 150) { autoBase = 150; autoDir = -1; }
+                if (autoBase <= 30) { autoBase = 30; autoDir = 1; }
+                setBase(autoBase);
+                let acc = 0, pwm = TAMBOR_FRENO, total = AUTO_TAMBOR.reduce((a, f) => a + f[1], 0);
+                const t = autoTick % total;
+                for (const [p, n] of AUTO_TAMBOR) { acc += n; if (t < acc) { pwm = p; break; } }
+                setTambor(pwm);
+                $('auto_estado').textContent = `base ${autoBase}° · tambor PWM ${pwm}`;
+                autoTick++;
+            }, 100);
+        }
+        function detenerAutoprueba() {
+            if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+            setTambor(TAMBOR_FRENO);
+            setBase(90);
+            $('auto_estado').textContent = 'detenida';
+        }
+
+        // ---- Guardado automático en el navegador ----
+        const CLAVE_GUIA = 'guiaGruaEDO_v2';
+        let datosGuia = {};
+        try { datosGuia = JSON.parse(localStorage.getItem(CLAVE_GUIA)) || {}; } catch (e) { datosGuia = {}; }
+        function guardarGuia() {
+            try { localStorage.setItem(CLAVE_GUIA, JSON.stringify(datosGuia)); } catch (e) { /* sin almacenamiento */ }
+        }
+        function borrarDatosGuia() {
+            if (!confirm('¿Borrar todos los datos, grabaciones y respuestas de la guía?')) return;
+            datosGuia = {};
+            guardarGuia();
+            location.reload();
+        }
+
+        // ---- Variables en vivo (panel de arriba) ----
+        const vivo = { t: [], E: [], q: [], Z: [], n: 0 };
+        const VIVO_MAX = 150;                            // 15 s de historia
+        let ultimoZ = null;
+        const graficaVivo = new Chart($('graficaVivo').getContext('2d'), {
+            type: 'line',
+            data: { labels: [], datasets: [
+                { label: 'E (V)', data: [], borderColor: '#ffb300', backgroundColor: 'transparent', pointRadius: 0, tension: 0.2, yAxisID: 'y' },
+                { label: 'q', data: [], borderColor: '#22d3ee', backgroundColor: 'transparent', pointRadius: 0, tension: 0.2, yAxisID: 'y' },
+                { label: 'Z', data: [], borderColor: '#2e7d32', backgroundColor: 'transparent', pointRadius: 0, tension: 0.2, yAxisID: 'y2' }
+            ] },
+            options: {
+                responsive: true, maintainAspectRatio: false, animation: false,
+                scales: {
+                    x: { title: { display: true, text: 't (s)' }, ticks: { maxTicksLimit: 8 } },
+                    y: { position: 'left', title: { display: true, text: 'E (V) y q' } },
+                    y2: { position: 'right', title: { display: true, text: 'Z' }, grid: { drawOnChartArea: false } }
+                }
+            }
+        });
+        function tendencia(arr, umbral) {
+            if (arr.length < 6) return '—';
+            const d = arr[arr.length - 1] - arr[arr.length - 6];     // cambio en 0.5 s
+            if (d > umbral) return '↑ sube';
+            if (d < -umbral) return '↓ baja';
+            return '= estable';
+        }
+        function actualizarVivo(E, q, Z) {
+            vivo.n++;
+            vivo.t.push((vivo.n * DT).toFixed(1)); vivo.E.push(E); vivo.q.push(q); vivo.Z.push(Z);
+            if (vivo.t.length > VIVO_MAX) { vivo.t.shift(); vivo.E.shift(); vivo.q.shift(); vivo.Z.shift(); }
+        }
+        graficaVivo.data.labels = vivo.t;
+        graficaVivo.data.datasets[0].data = vivo.E;
+        graficaVivo.data.datasets[1].data = vivo.q;
+        graficaVivo.data.datasets[2].data = vivo.Z;
+        function dibujarVivo(graficaVisible) {
+            if (!vivo.t.length) return;
+            const E = vivo.E[vivo.E.length - 1], q = vivo.q[vivo.q.length - 1], Z = vivo.Z[vivo.Z.length - 1];
+            if (graficaVisible) graficaVivo.update('none');
+            $('v_E').textContent = fmt(E, 2) + ' V';
+            $('v_q').textContent = fmt(q, 3);
+            $('v_Z').textContent = fmt(Z, 2);
+            $('t_E').textContent = E > 0 ? 'Constante mientras ΔPWM ≠ 0; vale 0 en la banda muerta' : 'Vale 0 (tambor frenado)';
+            $('t_q').textContent = tendencia(vivo.q, 0.01) + ' · sube hasta ≈ E/2 y se estabiliza';
+            $('t_Z').textContent = tendencia(vivo.Z, 0.02) + ' · cambia en línea recta mientras ΔPWM ≠ 0';
+        }
+        setInterval(() => {                              // la entrada se lee del slider (no se modifica)
+            const v = parseInt($('numTambor').value, 10);
+            if (isNaN(v)) return;
+            $('v_pwm').textContent = v;
+            const d = deltaPWM(v);
+            $('v_dpwm').textContent = (d > 0 ? '+' : '') + d;
+        }, 200);
+
+        // ---- Grabación de telemetría ----
+        let grabacion = null;            // { clave, pwm, q0, z0, muestras: [{E,q,Z}] }
+        let timersExperimento = [];
+
+        function registrarMuestra(E, q, Z) {
+            ultimoZ = Z;
+            actualizarVivo(E, q, Z);
+            if (!grabacion) return;
+            grabacion.muestras.push({ E, q, Z });
+            const est = $(grabacion.clave + '_estado');
+            if (est) est.textContent = `⏺ Grabando… ${grabacion.muestras.length} muestras`;
+        }
+        function iniciarExperimento(clave, pwm, tMov, tExtra) {
+            if (!conectado()) return;
+            if (grabacion) { alert('Ya hay un experimento en curso.'); return; }
+            if (deltaPWM(pwm) === 0) { alert('Ese PWM está en la banda muerta (91–96): el tambor no se mueve. Usa otro valor.'); return; }
+            grabacion = { clave, pwm, q0: ultimoQ ?? 0, z0: lecturaCrudaZ, base: lecturaCrudaBase, muestras: [] };
+            setTambor(pwm);
+            timersExperimento.push(setTimeout(() => setTambor(TAMBOR_FRENO), tMov * 1000));
+            timersExperimento.push(setTimeout(finalizarExperimento, (tMov + tExtra) * 1000));
+        }
+        function finalizarExperimento() {
+            timersExperimento.forEach(clearTimeout);
+            timersExperimento = [];
+            setTambor(TAMBOR_FRENO);
+            if (!grabacion) return;
+            const g = grabacion;
+            grabacion = null;
+            datosGuia[g.clave + '_rec'] = { pwm: g.pwm, q0: g.q0, z0: g.z0, base: g.base, muestras: g.muestras };
+            guardarGuia();
+            const est = $(g.clave + '_estado');
+            if (est) est.textContent = `✔ ${g.muestras.length} muestras grabadas`;
+            recalcularGuia();
+        }
+        function cancelarExperimento() { finalizarExperimento(); }
+
+        function experimentoP1() {
+            const pwm = num(campo('p1_pwm')), t = num(campo('p1_tmov'));
+            if (pwm === null || t === null) return alert('Completa el PWM y el tiempo.');
+            iniciarExperimento('p1', pwm, t, 0.5);
+        }
+        function experimentoP2() {
+            const pwm = num(campo('p2_pwm')), te = num(campo('p2_tesc'));
+            if (pwm === null || te === null) return alert('Completa el PWM y la duración del escalón.');
+            if (ultimoQ !== null && Math.abs(ultimoQ) > 0.05 && !confirm('q todavía no está en 0. Para comparar con la solución desde el reposo conviene esperar. ¿Grabar de todas formas?')) return;
+            iniciarExperimento('p2', pwm, te, 0.5);
+        }
+
+        const P3_ENSAYOS = [[106, 3], [106, 5], [112, 3], [100, 4]];   // [PWM, tiempo] por defecto
+        function experimentoP3(i) {
+            const pwm = num(campo('p3_pwm' + i)), t = num(campo('p3_t' + i));
+            if (pwm === null || t === null) return alert('Completa el PWM y el tiempo del ensayo.');
+            iniciarExperimento('p3_' + i, pwm, t, 0.5);
+        }
+
+        // ---- Construcción de tablas ----
+        P3_ENSAYOS.forEach(([p, t], i) => {
+            $('tabla-p3').tBodies[0].insertAdjacentHTML('beforeend', `<tr>
+                <td>${i + 1}${i === 0 ? '<br><small>calibración</small>' : ''}</td>
+                <td><input type="number" min="60" max="120" data-save="p3_pwm${i}" value="${p}"></td>
+                <td><input type="number" min="0.5" max="10" step="0.5" data-save="p3_t${i}" value="${t}"></td>
+                <td class="no-csv no-print"><button class="btn-mini" onclick="experimentoP3(${i})">▶</button><br><span class="estado" id="p3_${i}_estado" style="font-size:11px"></span></td>
+                <td class="calc" id="p3_dp${i}">—</td><td class="calc" id="p3_E${i}">—</td>
+                <td class="calc" id="p3_za${i}">—</td><td class="calc" id="p3_zt${i}">—</td>
+                <td class="calc" id="p3_qa${i}">—</td><td class="calc" id="p3_qt${i}">—</td><td class="calc" id="p3_b${i}">—</td>
+                <td class="calc" id="p3_ht${i}">—</td>
+                <td><input type="number" step="0.1" data-save="p3_h${i}"></td>
+                <td class="calc" id="p3_er${i}">—</td>
+            </tr>`);
+        });
+        P1_TIEMPOS.forEach((t, i) => {
+            $('tabla-p1').tBodies[0].insertAdjacentHTML('beforeend',
+                `<tr><td>${t.toFixed(1)}</td><td class="calc" id="p1_za${i}">—</td><td class="calc" id="p1_zs${i}">—</td><td class="calc" id="p1_zd${i}">—</td></tr>`);
+        });
+        P2_TIEMPOS.forEach((t, i) => {
+            $('tabla-p2').tBodies[0].insertAdjacentHTML('beforeend',
+                `<tr><td>${t === Math.PI ? 'π ≈ 3.14' : t.toFixed(1)}</td><td class="calc" id="p2_qa${i}">—</td><td class="calc" id="p2_qs${i}">—</td><td class="calc" id="p2_qe${i}">—</td></tr>`);
+        });
+
+        // ---- Gráficas ----
+        const opcionesXY = (tx, ty) => ({
+            responsive: true, maintainAspectRatio: false, animation: false,
+            scales: { x: { type: 'linear', title: { display: true, text: tx } }, y: { title: { display: true, text: ty } } }
+        });
+        const graficaP1 = new Chart($('graficaP1').getContext('2d'), {
+            type: 'scatter',
+            data: { datasets: [
+                { label: 'Z del Arduino', data: [], backgroundColor: '#0056b3', pointRadius: 4 },
+                { label: 'Solución Z(t) = Z₀ − 0.1·ΔPWM·t', data: [], borderColor: '#c62828', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 }
+            ] },
+            options: opcionesXY('t (s)', 'Z (unidades del modelo)')
+        });
+        const graficaP2 = new Chart($('graficaP2').getContext('2d'), {
+            type: 'scatter',
+            data: { datasets: [
+                { label: 'q del Arduino', data: [], backgroundColor: '#0056b3', pointRadius: 3 },
+                { label: 'Solución con Laplace', data: [], borderColor: '#c62828', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 },
+                { label: 'E (entrada)', data: [], borderColor: '#ffb300', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderDash: [6, 4], stepped: true }
+            ] },
+            options: opcionesXY('t (s)', 'q  /  E')
+        });
+
+        // Índices de la parte con movimiento (E > 0) dentro de una grabación
+        function tramoMovimiento(M) {
+            const k0 = M.findIndex(s => s.E > 0);
+            if (k0 < 0) return null;
+            let kf = k0; while (kf + 1 < M.length && M[kf + 1].E > 0) kf++;
+            return { k0, kf };
+        }
+
+        // ---- Cálculos ----
+        function calcP1() {
+            const rec = datosGuia.p1_rec;
+            const ids = ['p1_delta', 'p1_mt', 'p1_z0', 'p1_zf', 'p1_zft'];
+            const vacio = () => {
+                ids.forEach(id => $(id).textContent = '—');
+                P1_TIEMPOS.forEach((t, i) => ['p1_za', 'p1_zs', 'p1_zd'].forEach(p => $(p + i).textContent = '—'));
+                graficaP1.data.datasets.forEach(d => d.data = []); graficaP1.update();
+                $('p1_aviso').innerHTML = '';
+            };
+            if (!rec || !rec.muestras.length) return vacio();
+            const tr = tramoMovimiento(rec.muestras);
+            if (!tr) { vacio(); $('p1_aviso').innerHTML = '<div class="aviso">La grabación no tiene movimiento (E = 0). Revisa la conexión y repite.</div>'; return; }
+            const { k0, kf } = tr;
+
+            const d = deltaPWM(rec.pwm);
+            const mt = -0.1 * d;                                 // pendiente teórica dZ/dt
+            const Z0 = k0 > 0 ? rec.muestras[k0 - 1].Z : rec.z0;
+            const pts = [{ x: 0, y: Z0 }];                       // t = 0 justo antes del primer paso con movimiento
+            for (let k = k0; k <= kf; k++) pts.push({ x: (k - k0 + 1) * DT, y: rec.muestras[k].Z });
+            const tMax = pts[pts.length - 1].x;
+
+            $('p1_delta').textContent = (d > 0 ? '+' : '') + d;
+            $('p1_mt').textContent = fmt(mt, 3) + ' /s';
+            $('p1_z0').textContent = fmt(Z0, 2);
+            $('p1_zf').textContent = fmt(pts[pts.length - 1].y, 2);
+            $('p1_zft').textContent = fmt(Z0 + mt * tMax, 2);
+
+            const saturado = pts.slice(1).some(p => p.y <= -50 || p.y >= 0);
+            $('p1_aviso').innerHTML = saturado ? '<div class="aviso">⚠️ Z llegó a un tope (0 o −50) y el modelo se saturó: la recta deja de cumplirse. Repite desde otra posición.</div>' : '';
+
+            P1_TIEMPOS.forEach((t, i) => {
+                const p = pts.find(pp => Math.abs(pp.x - t) < DT / 2);
+                const zs = Z0 + mt * t;
+                $('p1_za' + i).textContent = p ? fmt(p.y) : '—';
+                $('p1_zs' + i).textContent = t <= tMax + 1e-9 ? fmt(zs) : '—';
+                $('p1_zd' + i).textContent = p ? fmt(p.y - zs) : '—';
+            });
+            graficaP1.data.datasets[0].data = pts;
+            graficaP1.data.datasets[1].data = [{ x: 0, y: Z0 }, { x: tMax, y: Z0 + mt * tMax }];
+            graficaP1.update();
+        }
+
+        function calcP2() {
+            const rec = datosGuia.p2_rec;
+            const ids = ['p2_E', 'p2_qft', 'p2_qfm', 'p2_pt', 'p2_pm'];
+            const tr = rec && rec.muestras.length ? tramoMovimiento(rec.muestras) : null;
+            if (!tr) {
+                ids.forEach(id => $(id).textContent = '—');
+                P2_TIEMPOS.forEach((t, i) => ['p2_qa', 'p2_qs', 'p2_qe'].forEach(p => $(p + i).textContent = '—'));
+                graficaP2.data.datasets.forEach(d => d.data = []); graficaP2.update();
+                return;
+            }
+            const M = rec.muestras, { k0, kf } = tr;
+            const E = M[k0].E;
+
+            $('p2_E').textContent = fmt(E) + ' V';
+            $('p2_qft').textContent = fmt(RLC.C * E, 3);
+            $('p2_qfm').textContent = fmt(M[kf].q, 3);
+            $('p2_pt').textContent = fmt(qEscalon(Math.PI, E), 3);
+            let kp = k0; for (let k = k0; k <= kf; k++) if (M[k].q > M[kp].q) kp = k;
+            $('p2_pm').textContent = fmt(M[kp].q, 3) + '  (t = ' + fmt((kp - k0 + 1) * DT, 1) + ' s)';
+
+            P2_TIEMPOS.forEach((t, i) => {
+                const k = k0 + Math.round(t / DT) - 1;
+                const ok = k <= kf;
+                const qs = qEscalon(t, E);
+                $('p2_qa' + i).textContent = ok ? fmt(M[k].q, 3) : '—';
+                $('p2_qs' + i).textContent = fmt(qs, 3);
+                $('p2_qe' + i).textContent = ok && qs !== 0 ? fmt(Math.abs(M[k].q - qs) / qs * 100, 1) : '—';
+            });
+
+            const tFin = (kf - k0 + 1) * DT;
+            const curva = [];
+            for (let t = 0; t <= tFin + 1e-9; t += 0.05) curva.push({ x: t, y: qEscalon(t, E) });
+            graficaP2.data.datasets[0].data = [{ x: 0, y: k0 > 0 ? M[k0 - 1].q : rec.q0 }].concat(M.slice(k0, kf + 1).map((s, j) => ({ x: (j + 1) * DT, y: s.q })));
+            graficaP2.data.datasets[1].data = curva;
+            graficaP2.data.datasets[2].data = [{ x: 0, y: E }, { x: tFin, y: E }];
+            graficaP2.update();
+        }
+
+        const graficaP3 = new Chart($('graficaP3').getContext('2d'), {
+            type: 'scatter',
+            data: { datasets: [
+                { label: 'Ensayos (teórica vs. medida)', data: [], backgroundColor: '#0056b3', pointRadius: 6 },
+                { label: 'Ideal: medida = teórica', data: [], borderColor: '#c62828', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 }
+            ] },
+            options: opcionesXY('h teórica (cm)', 'h medida (cm)')
+        });
+
+        function calcP3() {
+            const filas = [];
+            let k = null;
+            const sat = [];
+            P3_ENSAYOS.forEach((_, i) => {
+                const rec = datosGuia['p3_' + i + '_rec'];
+                const celdas = ['dp', 'E', 'za', 'zt', 'qa', 'qt', 'b', 'ht', 'er'];
+                const limpiar = () => celdas.forEach(c => $(`p3_${c}${i}`).textContent = '—');
+                const tr = rec && rec.muestras.length ? tramoMovimiento(rec.muestras) : null;
+                if (!tr) { limpiar(); filas.push(null); return; }
+                const M = rec.muestras, { k0, kf } = tr;
+                const d = deltaPWM(rec.pwm), E = M[k0].E;
+                const tMov = (kf - k0 + 1) * DT;
+                const z0 = k0 > 0 ? M[k0 - 1].Z : rec.z0;
+                const dZa = Math.abs(M[kf].Z - z0), dZt = 0.1 * Math.abs(d) * tMov;
+                if (M.slice(k0, kf + 1).some(s => s.Z <= -50 || s.Z >= 0)) sat.push(i + 1);
+                const hm = num(campo('p3_h' + i));
+                if (i === 0 && hm !== null && dZa > 0) k = hm / dZa;
+                $('p3_dp' + i).textContent = (d > 0 ? '+' : '') + d;
+                $('p3_E' + i).textContent = fmt(E, 2);
+                $('p3_za' + i).textContent = fmt(dZa, 2);
+                $('p3_zt' + i).textContent = fmt(dZt, 2);
+                $('p3_qa' + i).textContent = fmt(M[kf].q, 3);
+                $('p3_qt' + i).textContent = fmt(qEscalon(tMov, E), 3);
+                $('p3_b' + i).textContent = fmt(rec.base, 0);
+                filas.push({ dZt, hm });
+            });
+            let errs = [], pts = [], maxH = 0;
+            P3_ENSAYOS.forEach((_, i) => {
+                const f = filas[i];
+                if (!f) return;
+                const ht = k !== null ? k * f.dZt : null;
+                $('p3_ht' + i).textContent = i === 0 ? (ht !== null ? fmt(ht, 1) + ' (= medida)' : '—') : fmt(ht, 1);
+                if (i > 0 && ht !== null && f.hm !== null && f.hm !== 0) {
+                    const e = Math.abs(f.hm - ht) / Math.abs(f.hm) * 100;
+                    $('p3_er' + i).textContent = fmt(e, 1);
+                    errs.push(e);
+                } else $('p3_er' + i).textContent = '—';
+                if (ht !== null && f.hm !== null) { pts.push({ x: ht, y: f.hm }); maxH = Math.max(maxH, ht, f.hm); }
+            });
+            $('p3_k').textContent = k !== null ? fmt(k, 2) + ' cm por unidad de Z' : '—';
+            $('p3_errprom').textContent = errs.length ? fmt(errs.reduce((a, b) => a + b, 0) / errs.length, 1) + ' %' : '—';
+            $('p3_aviso').innerHTML = sat.length ? `<div class="aviso">⚠️ En el/los ensayo(s) ${sat.join(', ')} Z llegó a un tope (0 o −50): el modelo se saturó y esa fila no sirve. Repítela.</div>` : '';
+            graficaP3.data.datasets[0].data = pts;
+            graficaP3.data.datasets[1].data = maxH > 0 ? [{ x: 0, y: 0 }, { x: maxH * 1.1, y: maxH * 1.1 }] : [];
+            graficaP3.update();
+        }
+
+        function recalcularGuia() { calcP1(); calcP2(); calcP3(); }
+
+        // ---- Exportar / imprimir ----
+        function bajarCSV(lineas, nombre) {
+            const blob = new Blob(['\uFEFF' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = nombre + '.csv';
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        }
+        function descargarCSV(idTabla, nombre) {
+            const filas = [...document.querySelectorAll(`#${idTabla} tr`)].map(tr =>
+                [...tr.children].filter(c => !c.classList.contains('no-csv')).map(c => {
+                    const inp = c.querySelector('input');
+                    const txt = inp ? inp.value : c.textContent.trim();
+                    return '"' + txt.replace(/"/g, '""') + '"';
+                }).join(';')
+            );
+            bajarCSV(filas, nombre);
+        }
+        function imprimirGuia() {
+            document.body.classList.add('imprimir-guia');
+            window.print();
+            document.body.classList.remove('imprimir-guia');
+        }
+
+        // ---- Pestañas ----
+        document.querySelectorAll('.tabs button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('activa', b === btn));
+                document.querySelectorAll('.practica').forEach(s => s.classList.toggle('activa', s.id === btn.dataset.tab));
+                try { localStorage.setItem(CLAVE_GUIA + '_tab', btn.dataset.tab); } catch (e) {}
+            });
+        });
+        try {
+            const tab = localStorage.getItem(CLAVE_GUIA + '_tab');
+            const b = tab && document.querySelector(`.tabs button[data-tab="${tab}"]`);
+            if (b) b.click();
+        } catch (e) {}
+
+        // ---- Restaurar datos guardados y recalcular al escribir ----
+        document.querySelectorAll('#guia [data-save]').forEach(el => {
+            const k = el.dataset.save;
+            if (datosGuia[k] !== undefined) el.value = datosGuia[k];
+            el.addEventListener('input', () => {
+                datosGuia[k] = el.value;
+                guardarGuia();
+                recalcularGuia();
+            });
+        });
+        recalcularGuia();
+    </script>
+</body>
+</html>
