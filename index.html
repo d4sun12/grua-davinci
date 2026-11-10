@@ -34,7 +34,7 @@
         .marca .logo { width: 44px; height: 44px; border-radius: 10px; background: rgba(255,255,255,0.14); display: grid; place-items: center; font-size: 24px; }
         .marca h1 { margin: 0; font-size: 21px; font-weight: 700; }
         .marca p { margin: 2px 0 0; font-size: 13px; opacity: 0.8; }
-        .acciones-top { display: flex; align-items: center; gap: 8px; }
+        .acciones-top { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
         .btn-claro { background: #fff; color: var(--azul); }
         .btn-claro:hover { background: var(--azul-claro); }
         .btn-borde { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.55); }
@@ -69,6 +69,14 @@
         .coords b { color: var(--texto); font-size: 15px; font-variant-numeric: tabular-nums; margin-left: 3px; }
         .coords-estado { margin-left: auto; font-weight: 600; color: var(--texto-sec); }
         .coords-estado.en-origen { color: var(--verde); }
+        .ayuda-tambor { margin: 6px 0 0; font-size: 13px; color: var(--texto-sec); }
+        .calibracion { margin: 16px 0 20px; background: var(--fondo); border: 1px solid var(--borde); border-radius: 12px; padding: 14px 18px; text-align: left; }
+        .calibracion h3 { margin: 0; font-size: 16px; }
+        .cal-fila { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 10px 0; font-size: 14px; }
+        .cal-fila input { width: 80px; font-size: 15px; }
+        .cal-lectura { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14px; color: var(--texto-sec); }
+        .cal-lectura b { color: var(--verde); font-size: 18px; font-variant-numeric: tabular-nums; }
+        .card-sub { font-size: 13px; color: var(--texto-sec); margin-top: 2px; }
         .link-guia { color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; padding: 6px 10px; border-radius: 7px; opacity: .9; }
         .link-guia:hover { background: rgba(255,255,255,0.12); opacity: 1; }
         
@@ -204,13 +212,31 @@
                 <p>Ángulo Base: <strong id="val-base-ui">90</strong>°</p>
             </div>
             <div class="control-panel">
-                <h3>2. Izar Cuerda (Eje Z)</h3>
+                <h3>2. Cuerda: subir / bajar la carga (Eje Z)</h3>
                 <div class="control-fila">
                     <input type="range" id="sliderTambor" min="60" max="120" value="93">
                     <input type="number" id="numTambor" min="60" max="120" value="93">
                 </div>
                 <p>Señal Tambor: <strong id="val-tambor-ui">93</strong></p>
+                <p class="ayuda-tambor"><b>&lt; 91</b> baja la carga · <b>91–96</b> frenado (93) · <b>&gt; 96</b> sube la carga</p>
             </div>
+        </div>
+
+        <div class="calibracion">
+            <h3>Altura de la carga (medida con la cuerda)</h3>
+            <p class="ayuda-tambor">La <b>altura 0</b> es la posición inicial: la cuerda colgando desde donde cae al empezar. Desde ahí la carga <b>baja</b> y Z dice cuánta cuerda se soltó. Para comprobarlo, mide la nueva longitud de la cuerda.</p>
+            <div class="cal-fila">
+                <label>Longitud inicial de la cuerda (cm) <input type="number" id="calL0" min="0" step="0.1" placeholder="ej. 20"></label>
+                <label>1 unidad de Z = <input type="number" id="calK" min="0" step="0.01" placeholder="?"> cm</label>
+                <button class="btn-mini" onclick="bajarUnaUnidad()" title="Baja la carga exactamente 1 unidad de Z (PWM 81 durante 1 s)">⬇ Bajar 1 unidad</button>
+                <span class="estado" id="calEstado"></span>
+            </div>
+            <div class="cal-lectura">
+                <span>Bajó <b id="calBajoU">0.00</b> unidades</span>
+                <span>≈ <b id="calBajoCm">—</b> cm</span>
+                <span>Longitud de cuerda ahora ≈ <b id="calLong">—</b> cm</span>
+            </div>
+            <p class="ayuda-tambor">Calibrar: deja la carga en Z = 0, mide la cuerda, pulsa <b>⬇ Bajar 1 unidad</b>, mide otra vez y escribe la diferencia (en cm) en “1 unidad de Z”.</p>
         </div>
 
         <h2 class="titulo-seccion">Telemetría en tiempo real</h2>
@@ -218,7 +244,7 @@
             <div class="card c-e"><h3>Voltaje (E)</h3><div class="value" id="outE">0.00 V</div></div>
             <div class="card c-q"><h3>Carga (q)</h3><div class="value" id="outQ">0.00</div></div>
             <div class="card"><h3>Giro Base (θ)</h3><div class="value" id="outBase">0.0°</div></div>
-            <div class="card c-z"><h3>Elevación (Z)</h3><div class="value" id="outZ">0.00</div></div>
+            <div class="card c-z"><h3>Cuerda bajada (Z)</h3><div class="value" id="outZ">0.00</div><div class="card-sub" id="outZcm">calibra para ver cm</div></div>
         </div>
 
         <div class="graficas">
@@ -228,7 +254,7 @@
                 <div class="coords">
                     <span>X <b id="cX">0.00</b></span>
                     <span>Y <b id="cY">0.00</b></span>
-                    <span>Z <b id="cZ">0.00</b></span>
+                    <span>Z (altura) <b id="cZ">0.00</b></span>
                     <span>θ <b id="cB">0.0°</b></span>
                     <span class="coords-estado en-origen" id="cEstado">● En el origen (0, 0, 0)</span>
                 </div>
@@ -264,7 +290,7 @@
                         <tr><td><b>ΔPWM</b></td><td>Qué tan lejos estás de la banda muerta</td><td>Se calcula: PWM − 96 (si &gt; 96) o PWM − 91 (si &lt; 91)</td><td class="calc" id="v_dpwm">—</td><td>Más lejos de la banda muerta ⟹ mayor |ΔPWM|</td></tr>
                         <tr><td><b>E</b> (V)</td><td>Voltaje que entra al circuito RLC</td><td>Lo calcula el Arduino: E = |ΔPWM|/15·5</td><td class="calc" id="v_E">—</td><td id="t_E">—</td></tr>
                         <tr><td><b>q</b></td><td>Carga del circuito (solución de la EDO RLC)</td><td>Lo calcula el Arduino con Euler cada 0.1 s</td><td class="calc" id="v_q">—</td><td id="t_q">—</td></tr>
-                        <tr><td><b>Z</b></td><td>Altura de la carga (solución de dZ/dt)</td><td>Lo calcula el Arduino con Euler cada 0.1 s</td><td class="calc" id="v_Z">—</td><td id="t_Z">—</td></tr>
+                        <tr><td><b>Z</b></td><td>Cuerda bajada desde la posición inicial (solución de dZ/dt)</td><td>Lo calcula el Arduino con Euler cada 0.1 s</td><td class="calc" id="v_Z">—</td><td id="t_Z">—</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -289,9 +315,9 @@
                     <table class="datos resumen-edo">
                         <thead><tr><th>Fenómeno</th><th>EDO</th><th>Tipo</th><th>Cómo se resuelve</th><th>Práctica</th></tr></thead>
                         <tbody>
-                            <tr><td>Elevación de la carga (Z)</td><td>dZ/dt = −0.1 · ΔPWM</td><td>1er orden, separable</td><td>Integrando a ambos lados</td><td>1</td></tr>
+                            <tr><td>Cuerda bajada (Z)</td><td>dZ/dt = −0.1 · ΔPWM</td><td>1er orden, separable</td><td>Integrando a ambos lados</td><td>1</td></tr>
                             <tr><td>Circuito RLC (q)</td><td>q'' + 2q' + 2q = E</td><td>2º orden, no homogénea</td><td>Transformada de Laplace</td><td>2</td></tr>
-                            <tr><td>Altura real de la carga</td><td>Z(t) de la práctica 1 + escala en cm</td><td>Modelo vs. medición</td><td>Se calibra con un ensayo y se predice con los demás</td><td>3</td></tr>
+                            <tr><td>Cuánto baja la carga en la realidad</td><td>Z(t) de la práctica 1 + escala en cm</td><td>Modelo vs. medición</td><td>Se calibra con un ensayo y se predice con los demás</td><td>3</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -310,14 +336,14 @@ float d2q = (Et - (R * dq) - ((1.0 / C) * q)) / L;   <span class="com">// despej
 dq += d2q * dt;
 q  += dq  * dt;
 
-<span class="com">// EDO de la elevación:  dZ/dt = -0.1·ΔPWM</span>
+<span class="com">// EDO de la cuerda bajada:  dZ/dt = -0.1·ΔPWM   (Z = 0 en la posición inicial, topes 0 y 50)</span>
 elevacionZ += (diferenciaVel * -0.01);</div>
             </div>
         </section>
 
         <!-- ======================= PRÁCTICA 1 ======================= -->
         <section class="practica" id="p1">
-            <h3>Práctica 1 · EDO de primer orden: elevación de la carga</h3>
+            <h3>Práctica 1 · EDO de primer orden: bajada de la carga</h3>
 
             <div class="bloque">
                 <h4>1. Competencia</h4>
@@ -334,7 +360,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
 
             <div class="bloque">
                 <h4>3. Marco teórico</h4>
-                <p>La velocidad de la carga es la derivada de su altura Z. En el modelo, esa velocidad es proporcional a ΔPWM:</p>
+                <p><b>Z</b> es cuánta cuerda se ha soltado desde la posición inicial (Z = 0, la cuerda colgando desde donde cae al empezar). Su derivada es la velocidad con que baja la carga, y en el modelo es proporcional a ΔPWM. Al bajar (PWM &lt; 91) ΔPWM es negativo, así que dZ/dt es positivo y Z crece:</p>
                 <div class="formula clave">dZ/dt = −0.1 · ΔPWM</div>
                 <p>Es de <b>variables separables</b>. Si ΔPWM es constante: dZ = −0.1·ΔPWM·dt, se integra y queda</p>
                 <div class="formula clave">Z(t) = Z₀ − 0.1 · ΔPWM · t</div>
@@ -349,18 +375,18 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             <div class="bloque">
                 <h4>5. Procedimiento</h4>
                 <ol>
-                    <li>Mira en “Variables en vivo” que Z tenga un valor entre −45 y −5 (para que no llegue a un tope).</li>
-                    <li>Escoge un PWM (recomendado 106) y un tiempo (recomendado 3 s).</li>
+                    <li>Parte de la posición inicial (Z = 0) o de una Z menor que 45, para no llegar al tope de 50 (mira “Variables en vivo”).</li>
+                    <li>Escoge un PWM para <b>bajar</b> (recomendado 81 ⟹ ΔPWM = −10) y un tiempo (recomendado 3 s).</li>
                     <li>Pulsa <b>▶ Grabar experimento</b>. El tambor se mueve ese tiempo y frena solo.</li>
                     <li>Compara la tabla y la gráfica: puntos = Arduino, línea = tu solución.</li>
                 </ol>
-                <div class="nota">⚠️ Si Z llega a 0 o a −50 el modelo se satura (topes). Si pasa, pulsa “Fijar origen” o cambia el sentido y repite.</div>
+                <div class="nota">⚠️ Z tiene topes en 0 (posición inicial) y 50: si los alcanza, el modelo se satura y la recta deja de cumplirse. Si pasa, sube la carga (PWM &gt; 96) y repite.</div>
             </div>
 
             <div class="bloque">
                 <h4>6. Datos y resultados</h4>
                 <div class="parametros">
-                    <label>PWM: <input type="number" min="60" max="120" data-save="p1_pwm" value="106"></label>
+                    <label>PWM: <input type="number" min="60" max="120" data-save="p1_pwm" value="81"></label>
                     <label>Tiempo de movimiento (s): <input type="number" min="0.5" max="10" step="0.5" data-save="p1_tmov" value="3"></label>
                     <span class="no-print">
                         <button class="btn-mini" onclick="experimentoP1()">▶ Grabar experimento</button>
@@ -440,7 +466,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 <h4>5. Procedimiento</h4>
                 <ol>
                     <li>Verifica en “Variables en vivo” que q esté en 0 (reposo).</li>
-                    <li>Escoge un PWM (recomendado 106 ⟹ E = 3.33 V) y la duración del escalón (recomendado 5 s).</li>
+                    <li>Escoge un PWM (recomendado 81, que baja la carga ⟹ E = 3.33 V) y la duración del escalón (recomendado 5 s). E solo depende de |ΔPWM|: subir con 106 da el mismo E.</li>
                     <li>Pulsa <b>▶ Grabar experimento</b>: la página aplica E constante durante ese tiempo y frena sola.</li>
                     <li>Compara la tabla y la gráfica: puntos = Arduino, línea = solución con Laplace.</li>
                 </ol>
@@ -449,7 +475,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             <div class="bloque">
                 <h4>6. Datos y resultados</h4>
                 <div class="parametros">
-                    <label>PWM: <input type="number" min="60" max="120" data-save="p2_pwm" value="106"></label>
+                    <label>PWM: <input type="number" min="60" max="120" data-save="p2_pwm" value="81"></label>
                     <label>Escalón (s): <input type="number" min="1" max="10" step="0.5" data-save="p2_tesc" value="5"></label>
                     <span class="no-print">
                         <button class="btn-mini" onclick="experimentoP2()">▶ Grabar experimento</button>
@@ -502,7 +528,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 <h4>2. Objetivos</h4>
                 <ul>
                     <li>Calcular la altura teórica con la solución de dZ/dt = −0.1·ΔPWM.</li>
-                    <li>Medir con regla la altura real que sube la carga y compararla con la predicha.</li>
+                    <li>Medir con regla cuánto baja la carga (cuánto se alarga la cuerda) y compararlo con lo predicho.</li>
                     <li>Relacionar en cada ensayo todas las variables: PWM, ΔPWM, E, q, Z y el ángulo de la base.</li>
                 </ul>
             </div>
@@ -527,12 +553,12 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             <div class="bloque">
                 <h4>5. Procedimiento</h4>
                 <ol>
-                    <li>Mide y marca con cinta la altura inicial de la carga. Espera a que q esté en 0 (mira “Variables en vivo”).</li>
-                    <li>Ensayo 1: pulsa <b>▶</b>. Al terminar mide cuánto subió/bajó la carga y escríbelo en “h medida”.</li>
-                    <li>Repite con los ensayos 2, 3 y 4 (cambian PWM y tiempo). Antes de cada uno, vuelve a marcar la posición inicial.</li>
+                    <li>Con la carga en la posición inicial (Z = 0), mide la <b>longitud de la cuerda</b> desde donde cae hasta la carga: esa es tu altura 0. Espera a que q esté en 0 (mira “Variables en vivo”).</li>
+                    <li>Ensayo 1: pulsa <b>▶</b> (la carga baja). Al terminar mide la nueva longitud de la cuerda; <b>h medida = longitud nueva − longitud anterior</b>. Escríbela en “h medida”.</li>
+                    <li>Repite con los ensayos 2, 3 y 4 (cambian PWM y tiempo). Antes de cada uno, mide la longitud de la cuerda de partida.</li>
                     <li>Revisa la columna de error: ¿qué tan buena es la predicción?</li>
                 </ol>
-                <div class="nota">⚠️ Si Z llega a 0 o −50 el modelo se satura y esa fila no sirve. Si pasa, “Fijar origen” o cambia el sentido y repite.</div>
+                <div class="nota">⚠️ Si Z llega al tope de 50 (o vuelve a 0 al subir) el modelo se satura y esa fila no sirve. Si pasa, sube la carga y repite.</div>
             </div>
 
             <div class="bloque">
@@ -548,7 +574,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                             <th>Ensayo</th><th>PWM</th><th>t (s)</th><th class="no-csv"></th>
                             <th>ΔPWM</th><th>E (V)</th><th>|ΔZ| Arduino</th><th>|ΔZ| teórico</th>
                             <th>q Arduino</th><th>q teórica</th><th>Base (°)</th>
-                            <th>h teórica (cm)</th><th>h medida (cm)</th><th>Error (%)</th>
+                            <th>h teórica (cm)</th><th>h medida (cm, cuerda bajada)</th><th>Error (%)</th>
                         </tr></thead>
                         <tbody></tbody>
                     </table>
@@ -667,14 +693,15 @@ elevacionZ += (diferenciaVel * -0.01);</div>
 
         // ====== 2. GRÁFICAS ======
         // Ejes simétricos para que el origen (0,0,0) quede siempre en el centro del cubo.
-        // X e Y: desplazamiento del gancho respecto al origen (máx. 2·R_BRAZO). Z: elevación relativa (−50..50).
+        // X e Y: desplazamiento del gancho respecto al origen (máx. 2·R_BRAZO).
+        // Z: altura respecto a la posición inicial = −(cuerda bajada); al bajar la carga el punto baja.
         let layout3D = {
             margin: { l: 0, r: 0, b: 0, t: 0 },
             showlegend: false,
             scene: {
                 xaxis: { title: 'X', range: [-22, 22], zeroline: true },
                 yaxis: { title: 'Y', range: [-22, 22], zeroline: true },
-                zaxis: { title: 'Z', range: [-52, 52], zeroline: true },
+                zaxis: { title: 'Z (altura)', range: [-52, 52], zeroline: true },
                 aspectmode: 'cube'
             }
         };
@@ -691,6 +718,47 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             { x: [0], y: [0], z: [0], mode: 'markers+text', marker: { size: 4, color: '#1f2933', symbol: 'diamond' }, type: 'scatter3d',
               text: ['Origen'], textposition: 'bottom center', textfont: { size: 11, color: '#5b6573' }, hoverinfo: 'skip' }
         ], layout3D, {responsive: true});
+        // ---- Altura con la cuerda: longitud inicial y escala en cm (solo visual) ----
+        const CLAVE_CAL = 'gruaCalibracion_v1';
+        let cal = { L0: null, k: null };
+        try { cal = Object.assign(cal, JSON.parse(localStorage.getItem(CLAVE_CAL)) || {}); } catch (e) {}
+        const numOrNull = v => { const n = parseFloat(v); return Number.isFinite(n) && n >= 0 ? n : null; };
+        if (cal.L0 !== null) document.getElementById('calL0').value = cal.L0;
+        if (cal.k !== null) document.getElementById('calK').value = cal.k;
+        ['calL0', 'calK'].forEach(id => document.getElementById(id).addEventListener('input', () => {
+            cal.L0 = numOrNull(document.getElementById('calL0').value);
+            cal.k = numOrNull(document.getElementById('calK').value);
+            try { localStorage.setItem(CLAVE_CAL, JSON.stringify(cal)); } catch (e) {}
+            actualizarCalibracion(ultimaLectura ? ultimaLectura.Z : 0);
+        }));
+        function actualizarCalibracion(bajada) {
+            const cm = cal.k ? bajada * cal.k : null;
+            document.getElementById('calBajoU').textContent = bajada.toFixed(2);
+            document.getElementById('calBajoCm').textContent = cm !== null ? cm.toFixed(1) : '—';
+            document.getElementById('calLong').textContent = cm !== null && cal.L0 !== null ? (cal.L0 + cm).toFixed(1) : '—';
+            document.getElementById('outZcm').textContent = cm !== null ? `≈ ${cm.toFixed(1)} cm bajados` : 'calibra para ver cm';
+        }
+        actualizarCalibracion(0);
+        // Baja exactamente 1 unidad de Z: PWM 81 (ΔPWM = −10 ⟹ dZ/dt = 1 u/s) durante 1 s y frena.
+        // Usa el mismo envío que el slider; no cambia cómo funciona el motor.
+        let calTimer = null;
+        function bajarUnaUnidad() {
+            if (!writer) { alert('Primero conecta el Arduino con el botón 🔌 Conectar Arduino.'); return; }
+            if (calTimer) return;
+            const z0 = ultimaLectura ? ultimaLectura.Z : 0;
+            if (z0 > 49) { alert('Z ya está cerca del tope (50). Sube la carga primero.'); return; }
+            document.getElementById('calEstado').textContent = 'bajando…';
+            setTambor(81);
+            calTimer = setTimeout(() => {
+                setTambor(TAMBOR_FRENO);
+                setTimeout(() => {
+                    const z1 = ultimaLectura ? ultimaLectura.Z : z0;
+                    document.getElementById('calEstado').textContent = `bajó ${(z1 - z0).toFixed(2)} u · mide la cuerda`;
+                    calTimer = null;
+                }, 400);
+            }, 1000);
+        }
+
         function actualizarCoords() {
             const P = ultimaPos;
             document.getElementById('cX').textContent = fmtCoord(P.X);
@@ -736,7 +804,8 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 const L = ultimaLectura;
                 document.getElementById('outE').textContent = L.E.toFixed(2) + " V";
                 document.getElementById('outQ').textContent = L.Q.toFixed(2);
-                document.getElementById('outZ').textContent = L.Z.toFixed(2);
+                document.getElementById('outZ').textContent = L.Z.toFixed(2) + ' u';
+                actualizarCalibracion(L.Z);
                 document.getElementById('outBase').textContent = L.B.toFixed(1) + "°";
             }
             actualizarCoords();
@@ -822,7 +891,9 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                             let Y = R_BRAZO * (Math.sin(rad) - Math.sin(rad0));
                             ultimaPos = { X, Y, Z: Z_relativo, B: Base_relativa };
 
-                            xArr.push(X); yArr.push(Y); zArr.push(Z_relativo);
+                            // En el 3D la carga baja: altura = −(cuerda bajada)
+                            ultimaPos.Z = -Z_relativo;
+                            xArr.push(X); yArr.push(Y); zArr.push(-Z_relativo);
                             if (xArr.length > 50) { xArr.shift(); yArr.shift(); zArr.shift(); }
 
                             sampleCounter++;
@@ -961,6 +1032,13 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             if (d < -umbral) return '↓ baja';
             return '= estable';
         }
+        function tendenciaZ(arr) {                       // Z = cuerda bajada: si crece, la carga baja
+            if (arr.length < 6) return '—';
+            const d = arr[arr.length - 1] - arr[arr.length - 6];
+            if (d > 0.02) return '↓ la carga baja';
+            if (d < -0.02) return '↑ la carga sube';
+            return '= quieta';
+        }
         function actualizarVivo(E, q, Z) {
             vivo.n++;
             vivo.t.push((vivo.n * DT).toFixed(1)); vivo.E.push(E); vivo.q.push(q); vivo.Z.push(Z);
@@ -979,7 +1057,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             $('v_Z').textContent = fmt(Z, 2);
             $('t_E').textContent = E > 0 ? 'Constante mientras ΔPWM ≠ 0; vale 0 en la banda muerta' : 'Vale 0 (tambor frenado)';
             $('t_q').textContent = tendencia(vivo.q, 0.01) + ' · sube hasta ≈ E/2 y se estabiliza';
-            $('t_Z').textContent = tendencia(vivo.Z, 0.02) + ' · cambia en línea recta mientras ΔPWM ≠ 0';
+            $('t_Z').textContent = tendenciaZ(vivo.Z) + ' · cambia en línea recta mientras ΔPWM ≠ 0';
         }
         setInterval(() => {                              // la entrada se lee del slider (no se modifica)
             const v = parseInt($('numTambor').value, 10);
@@ -1037,7 +1115,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             iniciarExperimento('p2', pwm, te, 0.5);
         }
 
-        const P3_ENSAYOS = [[106, 3], [106, 5], [112, 3], [100, 4]];   // [PWM, tiempo] por defecto
+        const P3_ENSAYOS = [[81, 3], [81, 5], [75, 3], [87, 4]];   // [PWM, tiempo] por defecto (todos bajan la carga)
         function experimentoP3(i) {
             const pwm = num(campo('p3_pwm' + i)), t = num(campo('p3_t' + i));
             if (pwm === null || t === null) return alert('Completa el PWM y el tiempo del ensayo.');
@@ -1127,8 +1205,8 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             $('p1_zf').textContent = fmt(pts[pts.length - 1].y, 2);
             $('p1_zft').textContent = fmt(Z0 + mt * tMax, 2);
 
-            const saturado = pts.slice(1).some(p => p.y <= -50 || p.y >= 0);
-            $('p1_aviso').innerHTML = saturado ? '<div class="aviso">⚠️ Z llegó a un tope (0 o −50) y el modelo se saturó: la recta deja de cumplirse. Repite desde otra posición.</div>' : '';
+            const saturado = pts.slice(1).some(p => p.y >= 50 || p.y <= 0);
+            $('p1_aviso').innerHTML = saturado ? '<div class="aviso">⚠️ Z llegó a un tope (0 o 50) y el modelo se saturó: la recta deja de cumplirse. Sube la carga y repite.</div>' : '';
 
             P1_TIEMPOS.forEach((t, i) => {
                 const p = pts.find(pp => Math.abs(pp.x - t) < DT / 2);
@@ -1204,7 +1282,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 const tMov = (kf - k0 + 1) * DT;
                 const z0 = k0 > 0 ? M[k0 - 1].Z : rec.z0;
                 const dZa = Math.abs(M[kf].Z - z0), dZt = 0.1 * Math.abs(d) * tMov;
-                if (M.slice(k0, kf + 1).some(s => s.Z <= -50 || s.Z >= 0)) sat.push(i + 1);
+                if (M.slice(k0, kf + 1).some(s => s.Z >= 50 || s.Z <= 0)) sat.push(i + 1);
                 const hm = num(campo('p3_h' + i));
                 if (i === 0 && hm !== null && dZa > 0) k = hm / dZa;
                 $('p3_dp' + i).textContent = (d > 0 ? '+' : '') + d;
@@ -1231,7 +1309,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             });
             $('p3_k').textContent = k !== null ? fmt(k, 2) + ' cm por unidad de Z' : '—';
             $('p3_errprom').textContent = errs.length ? fmt(errs.reduce((a, b) => a + b, 0) / errs.length, 1) + ' %' : '—';
-            $('p3_aviso').innerHTML = sat.length ? `<div class="aviso">⚠️ En el/los ensayo(s) ${sat.join(', ')} Z llegó a un tope (0 o −50): el modelo se saturó y esa fila no sirve. Repítela.</div>` : '';
+            $('p3_aviso').innerHTML = sat.length ? `<div class="aviso">⚠️ En el/los ensayo(s) ${sat.join(', ')} Z llegó a un tope (0 o 50): el modelo se saturó y esa fila no sirve. Repítela.</div>` : '';
             graficaP3.data.datasets[0].data = pts;
             graficaP3.data.datasets[1].data = maxH > 0 ? [{ x: 0, y: 0 }, { x: maxH * 1.1, y: maxH * 1.1 }] : [];
             graficaP3.update();
