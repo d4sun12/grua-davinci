@@ -143,6 +143,7 @@
         table.datos input { width: 72px; font-size: 14px; padding: 4px; }
         table.datos .sol { display: none; }
         table.datos.ver-sol .sol { display: table-cell; background: #e8f5e9; color: #2e7d32; }
+        table.datos.ver-sol th.sol { background: #2e7d32; color: #fff; }
         table.resumen-edo td { text-align: left; }
         .ok { color: #2e7d32 !important; }
         .mal { color: #c62828 !important; }
@@ -378,7 +379,8 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                     <li>Parte de la posición inicial (Z = 0) o de una Z menor que 45, para no llegar al tope de 50 (mira “Variables en vivo”).</li>
                     <li>Escoge un PWM para <b>bajar</b> (recomendado 81 ⟹ ΔPWM = −10) y un tiempo (recomendado 3 s).</li>
                     <li>Pulsa <b>▶ Grabar experimento</b>. El tambor se mueve ese tiempo y frena solo.</li>
-                    <li>Compara la tabla y la gráfica: puntos = Arduino, línea = tu solución.</li>
+                    <li>Con el ΔPWM y el Z₀ de los resultados, <b>calcula a mano</b> Z(t) para cada tiempo y escríbelo en la columna <b>“Tu cálculo Z(t)”</b>. La tabla muestra la diferencia con el Arduino, y en la gráfica tus valores salen como triángulos verdes.</li>
+                    <li>Al final pulsa <b>👁 Ver solución de la página</b> para comparar con la solución que calcula la página.</li>
                 </ol>
                 <div class="nota">⚠️ Z tiene topes en 0 (posición inicial) y 50: si los alcanza, el modelo se satura y la recta deja de cumplirse. Si pasa, sube la carga (PWM &gt; 96) y repite.</div>
             </div>
@@ -404,12 +406,13 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 </div>
                 <div class="tabla-wrap">
                     <table class="datos" id="tabla-p1">
-                        <thead><tr><th>t (s)</th><th>Z del Arduino</th><th>Z(t) = Z₀ − 0.1·ΔPWM·t</th><th>Diferencia</th></tr></thead>
+                        <thead><tr><th>t (s)</th><th>Z del Arduino</th><th>Tu cálculo Z(t)</th><th>Diferencia (tuyo − Arduino)</th><th class="sol">Solución de la página Z₀ − 0.1·ΔPWM·t</th><th class="sol">Diferencia (página − Arduino)</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
                 <div class="grafica-guia"><canvas id="graficaP1"></canvas></div>
                 <div class="acciones no-print">
+                    <button class="btn-sec" onclick="verSolucion('tabla-p1', this)">👁 Ver solución de la página</button>
                     <button class="btn-sec" onclick="descargarCSV('tabla-p1','practica1_edo_primer_orden')">⬇ Descargar CSV</button>
                 </div>
             </div>
@@ -468,7 +471,8 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                     <li>Verifica en “Variables en vivo” que q esté en 0 (reposo).</li>
                     <li>Escoge un PWM (recomendado 81, que baja la carga ⟹ E = 3.33 V) y la duración del escalón (recomendado 5 s). E solo depende de |ΔPWM|: subir con 106 da el mismo E.</li>
                     <li>Pulsa <b>▶ Grabar experimento</b>: la página aplica E constante durante ese tiempo y frena sola.</li>
-                    <li>Compara la tabla y la gráfica: puntos = Arduino, línea = solución con Laplace.</li>
+                    <li>Con el E del escalón, evalúa <b>a mano</b> tu solución de Laplace en cada tiempo y escríbela en <b>“Tu cálculo q(t)”</b>. La tabla da el error contra el Arduino, y en la gráfica tus valores salen como triángulos verdes.</li>
+                    <li>Al final pulsa <b>👁 Ver solución de la página</b> para comparar con la curva de Laplace que calcula la página.</li>
                 </ol>
             </div>
 
@@ -492,12 +496,13 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 </div>
                 <div class="tabla-wrap">
                     <table class="datos" id="tabla-p2">
-                        <thead><tr><th>t (s)</th><th>q del Arduino</th><th>q(t) = (E/2)[1 − e<sup>−t</sup>(cos t + sen t)]</th><th>Error (%)</th></tr></thead>
+                        <thead><tr><th>t (s)</th><th>q del Arduino</th><th>Tu cálculo q(t)</th><th>Error tuyo vs. Arduino (%)</th><th class="sol">Solución de la página (E/2)[1 − e<sup>−t</sup>(cos t + sen t)]</th><th class="sol">Error página (%)</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
                 <div class="grafica-guia"><canvas id="graficaP2"></canvas></div>
                 <div class="acciones no-print">
+                    <button class="btn-sec" onclick="verSolucion('tabla-p2', this)">👁 Ver solución de la página</button>
                     <button class="btn-sec" onclick="descargarCSV('tabla-p2','practica2_edo_rlc_laplace')">⬇ Descargar CSV</button>
                 </div>
             </div>
@@ -1139,11 +1144,15 @@ elevacionZ += (diferenciaVel * -0.01);</div>
         });
         P1_TIEMPOS.forEach((t, i) => {
             $('tabla-p1').tBodies[0].insertAdjacentHTML('beforeend',
-                `<tr><td>${t.toFixed(1)}</td><td class="calc" id="p1_za${i}">—</td><td class="calc" id="p1_zs${i}">—</td><td class="calc" id="p1_zd${i}">—</td></tr>`);
+                `<tr><td>${t.toFixed(1)}</td><td class="calc" id="p1_za${i}">—</td>
+                 <td><input type="number" step="0.01" data-save="p1_u${i}" placeholder="?"></td><td class="calc" id="p1_ud${i}">—</td>
+                 <td class="calc sol" id="p1_zs${i}">—</td><td class="calc sol" id="p1_zd${i}">—</td></tr>`);
         });
         P2_TIEMPOS.forEach((t, i) => {
             $('tabla-p2').tBodies[0].insertAdjacentHTML('beforeend',
-                `<tr><td>${t === Math.PI ? 'π ≈ 3.14' : t.toFixed(1)}</td><td class="calc" id="p2_qa${i}">—</td><td class="calc" id="p2_qs${i}">—</td><td class="calc" id="p2_qe${i}">—</td></tr>`);
+                `<tr><td>${t === Math.PI ? 'π ≈ 3.14' : t.toFixed(1)}</td><td class="calc" id="p2_qa${i}">—</td>
+                 <td><input type="number" step="0.001" data-save="p2_u${i}" placeholder="?"></td><td class="calc" id="p2_ue${i}">—</td>
+                 <td class="calc sol" id="p2_qs${i}">—</td><td class="calc sol" id="p2_qe${i}">—</td></tr>`);
         });
 
         // ---- Gráficas ----
@@ -1155,7 +1164,8 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             type: 'scatter',
             data: { datasets: [
                 { label: 'Z del Arduino', data: [], backgroundColor: '#0056b3', pointRadius: 4 },
-                { label: 'Solución Z(t) = Z₀ − 0.1·ΔPWM·t', data: [], borderColor: '#c62828', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 }
+                { label: 'Solución de la página Z(t) = Z₀ − 0.1·ΔPWM·t', data: [], borderColor: '#c62828', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 },
+                { label: 'Tu cálculo', data: [], backgroundColor: '#2e7d32', borderColor: '#2e7d32', pointRadius: 6, pointStyle: 'triangle' }
             ] },
             options: opcionesXY('t (s)', 'Z (unidades del modelo)')
         });
@@ -1163,11 +1173,24 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             type: 'scatter',
             data: { datasets: [
                 { label: 'q del Arduino', data: [], backgroundColor: '#0056b3', pointRadius: 3 },
-                { label: 'Solución con Laplace', data: [], borderColor: '#c62828', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 },
-                { label: 'E (entrada)', data: [], borderColor: '#ffb300', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderDash: [6, 4], stepped: true }
+                { label: 'Solución de la página (Laplace)', data: [], borderColor: '#c62828', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 },
+                { label: 'E (entrada)', data: [], borderColor: '#ffb300', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderDash: [6, 4], stepped: true },
+                { label: 'Tu cálculo', data: [], backgroundColor: '#2e7d32', borderColor: '#2e7d32', pointRadius: 6, pointStyle: 'triangle' }
             ] },
             options: opcionesXY('t (s)', 'q  /  E')
         });
+
+        // Saturación real: el motor se mueve (ΔPWM ≠ 0) pero Z deja de cambiar porque llegó a un tope del modelo.
+        // Se mira si Z se queda igual en 2 pasos seguidos; no depende de dónde estén los topes.
+        function seSaturo(valores, d) {
+            if (!d) return false;
+            let quietos = 0;
+            for (let i = 1; i < valores.length; i++) {
+                quietos = Math.abs(valores[i] - valores[i - 1]) < 1e-6 ? quietos + 1 : 0;
+                if (quietos >= 2) return true;
+            }
+            return false;
+        }
 
         // Índices de la parte con movimiento (E > 0) dentro de una grabación
         function tramoMovimiento(M) {
@@ -1183,7 +1206,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             const ids = ['p1_delta', 'p1_mt', 'p1_z0', 'p1_zf', 'p1_zft'];
             const vacio = () => {
                 ids.forEach(id => $(id).textContent = '—');
-                P1_TIEMPOS.forEach((t, i) => ['p1_za', 'p1_zs', 'p1_zd'].forEach(p => $(p + i).textContent = '—'));
+                P1_TIEMPOS.forEach((t, i) => ['p1_za', 'p1_ud', 'p1_zs', 'p1_zd'].forEach(p => $(p + i).textContent = '—'));
                 graficaP1.data.datasets.forEach(d => d.data = []); graficaP1.update();
                 $('p1_aviso').innerHTML = '';
             };
@@ -1205,18 +1228,23 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             $('p1_zf').textContent = fmt(pts[pts.length - 1].y, 2);
             $('p1_zft').textContent = fmt(Z0 + mt * tMax, 2);
 
-            const saturado = pts.slice(1).some(p => p.y >= 50 || p.y <= 0);
+            const saturado = seSaturo(pts.map(p => p.y), d);
             $('p1_aviso').innerHTML = saturado ? '<div class="aviso">⚠️ Z llegó a un tope (0 o 50) y el modelo se saturó: la recta deja de cumplirse. Sube la carga y repite.</div>' : '';
 
+            const tuyos = [];
             P1_TIEMPOS.forEach((t, i) => {
                 const p = pts.find(pp => Math.abs(pp.x - t) < DT / 2);
                 const zs = Z0 + mt * t;
+                const u = num(campo('p1_u' + i));
+                if (u !== null) tuyos.push({ x: t, y: u });
                 $('p1_za' + i).textContent = p ? fmt(p.y) : '—';
+                $('p1_ud' + i).textContent = p && u !== null ? fmt(u - p.y) : '—';
                 $('p1_zs' + i).textContent = t <= tMax + 1e-9 ? fmt(zs) : '—';
-                $('p1_zd' + i).textContent = p ? fmt(p.y - zs) : '—';
+                $('p1_zd' + i).textContent = p ? fmt(zs - p.y) : '—';
             });
             graficaP1.data.datasets[0].data = pts;
-            graficaP1.data.datasets[1].data = [{ x: 0, y: Z0 }, { x: tMax, y: Z0 + mt * tMax }];
+            graficaP1.data.datasets[1].data = $('tabla-p1').classList.contains('ver-sol') ? [{ x: 0, y: Z0 }, { x: tMax, y: Z0 + mt * tMax }] : [];
+            graficaP1.data.datasets[2].data = tuyos;
             graficaP1.update();
         }
 
@@ -1226,7 +1254,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             const tr = rec && rec.muestras.length ? tramoMovimiento(rec.muestras) : null;
             if (!tr) {
                 ids.forEach(id => $(id).textContent = '—');
-                P2_TIEMPOS.forEach((t, i) => ['p2_qa', 'p2_qs', 'p2_qe'].forEach(p => $(p + i).textContent = '—'));
+                P2_TIEMPOS.forEach((t, i) => ['p2_qa', 'p2_ue', 'p2_qs', 'p2_qe'].forEach(p => $(p + i).textContent = '—'));
                 graficaP2.data.datasets.forEach(d => d.data = []); graficaP2.update();
                 return;
             }
@@ -1240,10 +1268,14 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             let kp = k0; for (let k = k0; k <= kf; k++) if (M[k].q > M[kp].q) kp = k;
             $('p2_pm').textContent = fmt(M[kp].q, 3) + '  (t = ' + fmt((kp - k0 + 1) * DT, 1) + ' s)';
 
+            const tuyos = [];
             P2_TIEMPOS.forEach((t, i) => {
                 const k = k0 + Math.round(t / DT) - 1;
                 const ok = k <= kf;
                 const qs = qEscalon(t, E);
+                const u = num(campo('p2_u' + i));
+                if (u !== null) tuyos.push({ x: t, y: u });
+                $('p2_ue' + i).textContent = ok && u !== null && M[k].q !== 0 ? fmt(Math.abs(u - M[k].q) / Math.abs(M[k].q) * 100, 1) : '—';
                 $('p2_qa' + i).textContent = ok ? fmt(M[k].q, 3) : '—';
                 $('p2_qs' + i).textContent = fmt(qs, 3);
                 $('p2_qe' + i).textContent = ok && qs !== 0 ? fmt(Math.abs(M[k].q - qs) / qs * 100, 1) : '—';
@@ -1253,9 +1285,18 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             const curva = [];
             for (let t = 0; t <= tFin + 1e-9; t += 0.05) curva.push({ x: t, y: qEscalon(t, E) });
             graficaP2.data.datasets[0].data = [{ x: 0, y: k0 > 0 ? M[k0 - 1].q : rec.q0 }].concat(M.slice(k0, kf + 1).map((s, j) => ({ x: (j + 1) * DT, y: s.q })));
-            graficaP2.data.datasets[1].data = curva;
+            graficaP2.data.datasets[1].data = $('tabla-p2').classList.contains('ver-sol') ? curva : [];
             graficaP2.data.datasets[2].data = [{ x: 0, y: E }, { x: tFin, y: E }];
+            graficaP2.data.datasets[3].data = tuyos;
             graficaP2.update();
+        }
+
+        // Muestra u oculta la solución que calcula la página (para comparar después de hacer el cálculo propio)
+        function verSolucion(idTabla, btn) {
+            const tabla = $(idTabla);
+            const ver = tabla.classList.toggle('ver-sol');
+            btn.textContent = ver ? '🙈 Ocultar solución de la página' : '👁 Ver solución de la página';
+            recalcularGuia();
         }
 
         const graficaP3 = new Chart($('graficaP3').getContext('2d'), {
@@ -1282,7 +1323,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 const tMov = (kf - k0 + 1) * DT;
                 const z0 = k0 > 0 ? M[k0 - 1].Z : rec.z0;
                 const dZa = Math.abs(M[kf].Z - z0), dZt = 0.1 * Math.abs(d) * tMov;
-                if (M.slice(k0, kf + 1).some(s => s.Z >= 50 || s.Z <= 0)) sat.push(i + 1);
+                if (seSaturo([z0].concat(M.slice(k0, kf + 1).map(s => s.Z)), d)) sat.push(i + 1);
                 const hm = num(campo('p3_h' + i));
                 if (i === 0 && hm !== null && dZa > 0) k = hm / dZa;
                 $('p3_dp' + i).textContent = (d > 0 ? '+' : '') + d;
