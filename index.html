@@ -338,7 +338,7 @@
             <button class="activa" data-tab="p0">Introducción</button>
             <button data-tab="p1">Práctica 1 · EDO de 1er orden (Z)</button>
             <button data-tab="p2">Práctica 2 · EDO de 2º orden con Laplace (RLC)</button>
-            <button data-tab="p3">Práctica 3 · Altura teórica vs. experimental</button>
+            <button data-tab="p3">Práctica 3 · Velocidad real vs PWM</button>
         </div>
 
         <!-- ======================= INTRODUCCIÓN ======================= -->
@@ -354,7 +354,7 @@
                         <tbody>
                             <tr><td>Cuerda bajada (Z)</td><td>dZ/dt = −0.1 · ΔPWM</td><td>1er orden, separable</td><td>Integrando a ambos lados</td><td>1</td></tr>
                             <tr><td>Circuito RLC (q)</td><td>q'' + 2q' + 2q = E</td><td>2º orden, no homogénea</td><td>Transformada de Laplace</td><td>2</td></tr>
-                            <tr><td>Cuánto baja la carga en la realidad</td><td>Z(t) de la práctica 1 + escala en cm</td><td>Modelo vs. medición</td><td>Se calibra con un ensayo y se predice con los demás</td><td>3</td></tr>
+                            <tr><td>Velocidad real de la cuerda</td><td>dZ/dt = −0.1 · ΔPWM vs. regla</td><td>Modelo vs. medición</td><td>Se mide la cuerda con 30 PWM y se compara con el modelo</td><td>3</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -558,85 +558,92 @@ elevacionZ += (diferenciaVel * -0.01);</div>
 
         <!-- ======================= PRÁCTICA 3 ======================= -->
         <section class="practica" id="p3">
-            <h3>Práctica 3 · Altura teórica vs. experimental (todas las variables juntas)</h3>
+            <h3>Práctica 3 · Velocidad real de la cuerda vs PWM (modelo vs. realidad)</h3>
 
             <div class="bloque">
                 <h4>1. Competencia</h4>
-                <p>Usar la solución de una EDO para predecir una magnitud física, medirla en el sistema real y analizar el error entre teoría y experimento.</p>
+                <p>Contrastar la predicción de una EDO de primer orden con mediciones del sistema real y analizar en qué se parece y en qué no.</p>
             </div>
 
             <div class="bloque">
                 <h4>2. Objetivos</h4>
                 <ul>
-                    <li>Calcular la altura teórica con la solución de dZ/dt = −0.1·ΔPWM.</li>
-                    <li>Medir con regla cuánto baja la carga (cuánto se alarga la cuerda) y compararlo con lo predicho.</li>
-                    <li>Relacionar en cada ensayo todas las variables: PWM, ΔPWM, E, q, Z y el ángulo de la base.</li>
+                    <li>Medir con regla la velocidad real de la cuerda para 30 valores de PWM.</li>
+                    <li>Compararla con la que predice el modelo dZ/dt = −0.1·ΔPWM.</li>
+                    <li>Encontrar la zona quieta real del motor, si se satura en los extremos y si sube igual de rápido que baja.</li>
                 </ul>
             </div>
 
             <div class="bloque">
                 <h4>3. Marco teórico</h4>
-                <p>De la práctica 1, el modelo recorre en unidades de Z:</p>
-                <div class="formula">|ΔZ| = 0.1 · |ΔPWM| · t</div>
-                <p>Las unidades del modelo no son centímetros, así que se necesita una <b>escala k</b> (cm por unidad de Z). Se obtiene en el <b>ensayo 1 (calibración)</b>:</p>
-                <div class="formula clave">k = h<sub>medida 1</sub> / |ΔZ<sub>1</sub>| &nbsp;&nbsp;⟹&nbsp;&nbsp; h<sub>teórica</sub> = k · 0.1 · |ΔPWM| · t</div>
-                <p>Con k fija, se <b>predice</b> la altura de los ensayos 2, 3 y 4 y se compara con lo medido. Además, en cada ensayo el Arduino calcula E = |ΔPWM|/15·5 (máximo 5 V) y la carga q del RLC; la teoría de la práctica 2 da q(t) = (E/2)[1 − e<sup>−t</sup>(cos t + sen t)].</p>
+                <p>El modelo de la práctica 1 dice que la cuerda se mueve a una velocidad proporcional a ΔPWM. En un tiempo t, lo que el Arduino cree que se movió es:</p>
+                <div class="formula">ΔZ = −0.1 · ΔPWM · t &nbsp;&nbsp;(unidades del modelo)</div>
+                <p>Las unidades del modelo no son centímetros. Con la regla se mide el cambio real de la cuerda <b>h</b> (cm), y la relación entre los dos es la escala <b>k</b>:</p>
+                <div class="formula clave">k = h / ΔZ &nbsp;(cm por unidad) &nbsp;&nbsp;⟹&nbsp;&nbsp; v<sub>modelo</sub> = −0.1 · ΔPWM · k<sub>promedio</sub></div>
+                <p><b>Si el modelo fuera perfecto, k daría igual en todas las pruebas</b> y los puntos medidos caerían sobre la recta del modelo. Lo interesante es ver dónde no pasa.</p>
             </div>
 
             <div class="bloque">
                 <h4>4. Materiales</h4>
                 <ul>
-                    <li>Grúa conectada a esta página.</li>
-                    <li>Regla o flexómetro y cinta para marcar la posición de la carga.</li>
+                    <li>Grúa conectada a esta página, siempre con la misma carga.</li>
+                    <li>Regla o flexómetro (cm).</li>
                 </ul>
             </div>
 
             <div class="bloque">
                 <h4>5. Procedimiento</h4>
                 <ol>
-                    <li>Con la carga en la posición inicial (Z = 0), mide la <b>longitud de la cuerda</b> desde donde cae hasta la carga: esa es tu altura 0. Espera a que q esté en 0 (mira “Variables en vivo”).</li>
-                    <li>Ensayo 1: pulsa <b>▶</b> (la carga baja). Al terminar mide la nueva longitud de la cuerda; <b>h medida = longitud nueva − longitud anterior</b>. Escríbela en “h medida”.</li>
-                    <li>Repite con los ensayos 2, 3 y 4 (cambian PWM y tiempo). Antes de cada uno, mide la longitud de la cuerda de partida.</li>
-                    <li>Revisa la columna de error: ¿qué tan buena es la predicción?</li>
+                    <li>Escoge un <b>punto fijo</b> para medir siempre igual: desde donde la cuerda sale del tambor hasta el gancho de la carga.</li>
+                    <li>Deja la carga a <b>media altura</b>, para que tenga espacio para subir y bajar.</li>
+                    <li>En la fila del PWM: mide la cuerda y escríbela en <b>“Cuerda antes”</b>.</li>
+                    <li>Pulsa <b>▶</b> en esa fila. El tambor se mueve exactamente el tiempo indicado (3 s) y frena solo. <b>No cambies de pestaña ni minimices el navegador mientras se mueve</b> (el navegador puede retrasar el freno).</li>
+                    <li>Cuando la carga deje de oscilar, mide otra vez y escríbela en <b>“Cuerda después”</b>. Lo demás se calcula solo.</li>
+                    <li>Sigue la columna <b>“Orden”</b> (1, 2, 3…): alterna bajar y subir para no quedarte sin cuerda. Si la carga llega arriba o al piso, muévela con el slider (sin anotar) y sigue.</li>
                 </ol>
-                <div class="nota">⚠️ Si aparece un aviso rojo de “tope” en un ensayo, la cuerda se bajó demasiado y esa fila no sirve. Sube la carga y repítelo.</div>
+                <div class="nota">Las filas de 91 a 96 son la zona quieta: el motor no debería moverse. Si la cuerda cambia aunque sea un poco, anótalo: la zona quieta real de tu servo es distinta.</div>
             </div>
 
             <div class="bloque">
                 <h4>6. Datos y resultados</h4>
-                <div id="p3_aviso"></div>
+                <div class="parametros">
+                    <label>Tiempo de cada prueba (s): <input type="number" min="1" max="10" step="0.5" data-save="p3v_t" value="3"></label>
+                    <span class="estado no-print" id="p3v_estado"></span>
+                </div>
                 <div class="resumen">
-                    <div>Escala k (ensayo 1)<b id="p3_k">—</b></div>
-                    <div>Error promedio (ensayos 2–4)<b id="p3_errprom">—</b></div>
+                    <div>k promedio (cm por unidad)<b id="p3v_k">—</b></div>
+                    <div>Variación de k (% del promedio)<b id="p3v_var">—</b></div>
+                    <div>Error promedio de velocidad<b id="p3v_err">—</b></div>
+                    <div>Pruebas hechas<b id="p3v_n">0 de 30</b></div>
                 </div>
                 <div class="tabla-wrap">
                     <table class="datos" id="tabla-p3">
                         <thead><tr>
-                            <th>Ensayo</th><th>PWM</th><th>t (s)</th><th class="no-csv"></th>
-                            <th>ΔPWM</th><th>E (V)</th><th>|ΔZ| Arduino</th><th>|ΔZ| teórico</th>
-                            <th>q Arduino</th><th>q teórica</th><th>Base (°)</th>
-                            <th>h teórica (cm)</th><th>h medida (cm, cuerda bajada)</th><th>Error (%)</th>
+                            <th>Orden</th><th>PWM</th><th>ΔPWM</th><th>Sentido</th><th class="no-csv no-print"></th>
+                            <th>Cuerda antes (cm)</th><th>Cuerda después (cm)</th><th>Cambio h (cm)</th><th>Velocidad real (cm/s)</th>
+                            <th>ΔZ modelo (u)</th><th>k (cm/u)</th><th>Velocidad modelo (cm/s)</th><th>Error (%)</th>
                         </tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
-                <div class="grafica-guia"><canvas id="graficaP3"></canvas></div>
+                <div class="grafica-guia" style="height:340px"><canvas id="graficaP3"></canvas></div>
+                <p class="ayuda-tambor">Signo de la velocidad: <b>+</b> la cuerda se alarga (la carga baja) · <b>−</b> la cuerda se acorta (la carga sube).</p>
                 <div class="acciones no-print">
-                    <button class="btn-sec" onclick="descargarCSV('tabla-p3','practica3_altura_teorica_vs_experimental')">⬇ Descargar CSV</button>
+                    <button class="btn-sec" onclick="descargarCSV('tabla-p3','practica3_velocidad_vs_pwm')">⬇ Descargar CSV</button>
                 </div>
             </div>
 
             <div class="bloque">
                 <h4>7. Informe</h4>
                 <ol>
-                    <li>Escribe cómo obtuviste k y calcula a mano la altura teórica de un ensayo.
-                        <textarea data-save="p3_q1"></textarea></li>
-                    <li>¿Qué tan cerca quedó la altura medida de la teórica? Da al menos dos causas del error (holgura de la cuerda, el tambor se enrolla en capas, la medición con regla, etc.).
-                        <textarea data-save="p3_q2"></textarea></li>
-                    <li>¿Cómo cambian E y q cuando aumenta |ΔPWM|? ¿Y la altura? ¿Cuál de las dos depende del tiempo y cuál del valor final?
-                        <textarea data-save="p3_q3"></textarea></li>
-                    <li>Conclusión:
-                        <textarea data-save="p3_q4"></textarea></li>
+                    <li>¿Dio k igual en todas las pruebas? ¿Qué significa que varíe?
+                        <textarea data-save="p3v_q1"></textarea></li>
+                    <li>¿Desde qué PWM empieza a moverse de verdad el motor, hacia arriba y hacia abajo? ¿Coincide con la zona quieta 91–96 del modelo?
+                        <textarea data-save="p3v_q2"></textarea></li>
+                    <li>¿La velocidad sigue creciendo en los extremos o se aplana? ¿Sube igual de rápido que baja? ¿Por qué crees que pasa (peso de la carga, el servo, la cuerda enrollándose en capas)?
+                        <textarea data-save="p3v_q3"></textarea></li>
+                    <li>Conclusión: ¿qué tan bien describe la EDO al sistema real?
+                        <textarea data-save="p3v_q4"></textarea></li>
                 </ol>
             </div>
         </section>
@@ -1156,26 +1163,34 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             iniciarExperimento('p2', pwm, te, 0.5);
         }
 
-        const P3_ENSAYOS = [[81, 3], [81, 5], [75, 3], [87, 4]];   // [PWM, tiempo] por defecto (todos bajan la carga)
-        function experimentoP3(i) {
-            const pwm = num(campo('p3_pwm' + i)), t = num(campo('p3_t' + i));
-            if (pwm === null || t === null) return alert('Completa el PWM y el tiempo del ensayo.');
-            iniciarExperimento('p3_' + i, pwm, t, 0.5);
+        // ---- Práctica 3: velocidad real de la cuerda vs PWM ----
+        const P3_PWMS = [60, 65, 66, 70, 72, 75, 80, 85, 88, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120];
+        // Orden sugerido: alterna bajar y subir para no quedarse sin cuerda (igual que el Excel)
+        const P3_ORDEN = { 60: 1, 120: 2, 65: 3, 118: 4, 66: 5, 116: 6, 70: 7, 114: 8, 72: 9, 112: 10, 75: 11, 110: 12, 80: 13, 108: 14, 85: 15, 106: 16, 88: 17, 104: 18, 90: 19, 102: 20, 100: 21, 99: 22, 98: 23, 97: 24, 91: 25, 92: 26, 93: 27, 94: 28, 95: 29, 96: 30 };
+        let p3Moviendo = false;
+        function moverP3(i) {
+            if (!conectado() || p3Moviendo) return;
+            const pwm = P3_PWMS[i], t = num(campo('p3v_t')) || 3;
+            p3Moviendo = true;
+            $('p3v_estado').textContent = `Moviendo PWM ${pwm} durante ${t} s…`;
+            setTambor(pwm);
+            setTimeout(() => {
+                setTambor(TAMBOR_FRENO);
+                p3Moviendo = false;
+                $('p3v_estado').textContent = `✔ PWM ${pwm} listo: espera a que la carga se quede quieta y mide la cuerda.`;
+            }, t * 1000);
         }
 
         // ---- Construcción de tablas ----
-        P3_ENSAYOS.forEach(([p, t], i) => {
+        P3_PWMS.forEach((p, i) => {
             $('tabla-p3').tBodies[0].insertAdjacentHTML('beforeend', `<tr>
-                <td>${i + 1}${i === 0 ? '<br><small>calibración</small>' : ''}</td>
-                <td><input type="number" min="60" max="120" data-save="p3_pwm${i}" value="${p}"></td>
-                <td><input type="number" min="0.5" max="10" step="0.5" data-save="p3_t${i}" value="${t}"></td>
-                <td class="no-csv no-print"><button class="btn-mini" onclick="experimentoP3(${i})">▶</button><br><span class="estado" id="p3_${i}_estado" style="font-size:11px"></span></td>
-                <td class="calc" id="p3_dp${i}">—</td><td class="calc" id="p3_E${i}">—</td>
-                <td class="calc" id="p3_za${i}">—</td><td class="calc" id="p3_zt${i}">—</td>
-                <td class="calc" id="p3_qa${i}">—</td><td class="calc" id="p3_qt${i}">—</td><td class="calc" id="p3_b${i}">—</td>
-                <td class="calc" id="p3_ht${i}">—</td>
-                <td><input type="number" step="0.1" data-save="p3_h${i}"></td>
-                <td class="calc" id="p3_er${i}">—</td>
+                <td>${P3_ORDEN[p]}</td><td><b>${p}</b></td><td class="calc" id="p3v_d${i}">—</td><td id="p3v_s${i}">—</td>
+                <td class="no-csv no-print"><button class="btn-mini" onclick="moverP3(${i})" title="Mover el tambor con PWM ${p}">▶</button></td>
+                <td><input type="number" step="0.1" data-save="p3v_a${i}"></td>
+                <td><input type="number" step="0.1" data-save="p3v_b${i}"></td>
+                <td class="calc" id="p3v_h${i}">—</td><td class="calc" id="p3v_v${i}">—</td>
+                <td class="calc" id="p3v_z${i}">—</td><td class="calc" id="p3v_k${i}">—</td>
+                <td class="calc" id="p3v_m${i}">—</td><td class="calc" id="p3v_e${i}">—</td>
             </tr>`);
         });
         P1_TIEMPOS.forEach((t, i) => {
@@ -1338,57 +1353,47 @@ elevacionZ += (diferenciaVel * -0.01);</div>
         const graficaP3 = new Chart($('graficaP3').getContext('2d'), {
             type: 'scatter',
             data: { datasets: [
-                { label: 'Ensayos (teórica vs. medida)', data: [], backgroundColor: '#0056b3', pointRadius: 6 },
-                { label: 'Ideal: medida = teórica', data: [], borderColor: '#c62828', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 }
+                { label: 'Velocidad real (medida)', data: [], backgroundColor: '#0056b3', pointRadius: 5 },
+                { label: 'Velocidad del modelo (k promedio · 0.1 · ΔPWM)', data: [], borderColor: '#e67e22', backgroundColor: 'transparent', showLine: true, pointRadius: 0, borderWidth: 2 }
             ] },
-            options: opcionesXY('h teórica (cm)', 'h medida (cm)')
+            options: opcionesXY('PWM', 'Velocidad (cm/s)   + baja · − sube')
         });
 
         function calcP3() {
-            const filas = [];
-            let k = null;
-            const sat = [];
-            P3_ENSAYOS.forEach((_, i) => {
-                const rec = datosGuia['p3_' + i + '_rec'];
-                const celdas = ['dp', 'E', 'za', 'zt', 'qa', 'qt', 'b', 'ht', 'er'];
-                const limpiar = () => celdas.forEach(c => $(`p3_${c}${i}`).textContent = '—');
-                const tr = rec && rec.muestras.length ? tramoMovimiento(rec.muestras) : null;
-                if (!tr) { limpiar(); filas.push(null); return; }
-                const M = rec.muestras, { k0, kf } = tr;
-                const d = deltaPWM(rec.pwm), E = M[k0].E;
-                const tMov = (kf - k0 + 1) * DT;
-                const z0 = k0 > 0 ? M[k0 - 1].Z : rec.z0;
-                const dZa = Math.abs(M[kf].Z - z0), dZt = 0.1 * Math.abs(d) * tMov;
-                if (seSaturo([z0].concat(M.slice(k0, kf + 1).map(s => s.Z)), d)) sat.push(i + 1);
-                const hm = num(campo('p3_h' + i));
-                if (i === 0 && hm !== null && dZa > 0) k = hm / dZa;
-                $('p3_dp' + i).textContent = (d > 0 ? '+' : '') + d;
-                $('p3_E' + i).textContent = fmt(E, 2);
-                $('p3_za' + i).textContent = fmt(dZa, 2);
-                $('p3_zt' + i).textContent = fmt(dZt, 2);
-                $('p3_qa' + i).textContent = fmt(M[kf].q, 3);
-                $('p3_qt' + i).textContent = fmt(qEscalon(tMov, E), 3);
-                $('p3_b' + i).textContent = fmt(rec.base, 0);
-                filas.push({ dZt, hm });
+            const t = num(campo('p3v_t')) || 3;
+            const filas = P3_PWMS.map((p, i) => {
+                const d = deltaPWM(p);
+                const antes = num(campo('p3v_a' + i)), despues = num(campo('p3v_b' + i));
+                const h = antes !== null && despues !== null ? despues - antes : null;   // cambio de cuerda (cm)
+                const v = h !== null ? h / t : null;                                     // velocidad real (cm/s)
+                const dz = -0.1 * d * t;                                                 // lo que cree el modelo (u)
+                const k = h !== null && dz !== 0 ? h / dz : null;                        // cm por unidad
+                return { p, d, h, v, dz, k };
             });
-            let errs = [], pts = [], maxH = 0;
-            P3_ENSAYOS.forEach((_, i) => {
-                const f = filas[i];
-                if (!f) return;
-                const ht = k !== null ? k * f.dZt : null;
-                $('p3_ht' + i).textContent = i === 0 ? (ht !== null ? fmt(ht, 1) + ' (= medida)' : '—') : fmt(ht, 1);
-                if (i > 0 && ht !== null && f.hm !== null && f.hm !== 0) {
-                    const e = Math.abs(f.hm - ht) / Math.abs(f.hm) * 100;
-                    $('p3_er' + i).textContent = fmt(e, 1);
-                    errs.push(e);
-                } else $('p3_er' + i).textContent = '—';
-                if (ht !== null && f.hm !== null) { pts.push({ x: ht, y: f.hm }); maxH = Math.max(maxH, ht, f.hm); }
+            const ks = filas.filter(f => f.k !== null).map(f => f.k);
+            const kProm = ks.length ? ks.reduce((a, b) => a + b, 0) / ks.length : null;
+            const desv = ks.length > 1 ? Math.sqrt(ks.reduce((a, b) => a + (b - kProm) ** 2, 0) / (ks.length - 1)) : null;
+            const errs = [];
+            filas.forEach((f, i) => {
+                const vm = kProm !== null ? -0.1 * f.d * kProm : null;                   // velocidad del modelo (cm/s)
+                const err = f.v !== null && vm !== null && vm !== 0 ? Math.abs(f.v - vm) / Math.abs(vm) * 100 : null;
+                if (err !== null) errs.push(err);
+                f.vm = vm;
+                $('p3v_d' + i).textContent = (f.d > 0 ? '+' : '') + f.d;
+                $('p3v_s' + i).textContent = f.d > 0 ? 'sube' : f.d < 0 ? 'baja' : 'quieto';
+                $('p3v_h' + i).textContent = fmt(f.h, 1);
+                $('p3v_v' + i).textContent = fmt(f.v, 2);
+                $('p3v_z' + i).textContent = fmt(f.dz, 1);
+                $('p3v_k' + i).textContent = fmt(f.k, 2);
+                $('p3v_m' + i).textContent = fmt(vm, 2);
+                $('p3v_e' + i).textContent = fmt(err, 1);
             });
-            $('p3_k').textContent = k !== null ? fmt(k, 2) + ' cm por unidad de Z' : '—';
-            $('p3_errprom').textContent = errs.length ? fmt(errs.reduce((a, b) => a + b, 0) / errs.length, 1) + ' %' : '—';
-            $('p3_aviso').innerHTML = sat.length ? `<div class="aviso">⚠️ En el/los ensayo(s) ${sat.join(', ')} Z dejó de cambiar (tope): esa fila no sirve. Sube la carga y repítela.</div>` : '';
-            graficaP3.data.datasets[0].data = pts;
-            graficaP3.data.datasets[1].data = maxH > 0 ? [{ x: 0, y: 0 }, { x: maxH * 1.1, y: maxH * 1.1 }] : [];
+            $('p3v_k').textContent = kProm !== null ? fmt(kProm, 2) : '—';
+            $('p3v_var').textContent = desv !== null ? fmt(desv / kProm * 100, 1) + ' %' : '—';
+            $('p3v_err').textContent = errs.length ? fmt(errs.reduce((a, b) => a + b, 0) / errs.length, 1) + ' %' : '—';
+            $('p3v_n').textContent = `${filas.filter(f => f.h !== null).length} de 30`;
+            graficaP3.data.datasets[0].data = filas.filter(f => f.v !== null).map(f => ({ x: f.p, y: f.v }));
+            graficaP3.data.datasets[1].data = kProm !== null ? filas.map(f => ({ x: f.p, y: f.vm })) : [];
             graficaP3.update();
         }
 
