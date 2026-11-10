@@ -77,6 +77,12 @@
         .cal-lectura { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 14px; color: var(--texto-sec); }
         .cal-lectura b { color: var(--verde); font-size: 18px; font-variant-numeric: tabular-nums; }
         .card-sub { font-size: 13px; color: var(--texto-sec); margin-top: 2px; }
+        .explica { margin: 14px 0 0; background: var(--azul-claro); border: 1px solid var(--borde); border-radius: 12px; padding: 10px 16px; text-align: left; }
+        .explica summary { cursor: pointer; font-weight: 700; color: var(--azul); font-size: 15px; }
+        .explica-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 20px; margin-top: 10px; }
+        .explica h4 { margin: 4px 0; font-size: 14px; color: var(--texto); }
+        .explica p { margin: 5px 0; font-size: 13.5px; line-height: 1.5; color: var(--texto); }
+        .explica-formula { font-family: "Cambria Math", "Times New Roman", serif; font-size: 15px !important; background: #fff; border-left: 3px solid var(--azul); padding: 4px 10px; border-radius: 0 6px 6px 0; }
         .link-guia { color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; padding: 6px 10px; border-radius: 7px; opacity: .9; }
         .link-guia:hover { background: rgba(255,255,255,0.12); opacity: 1; }
         
@@ -248,6 +254,36 @@
             <div class="card c-z"><h3>Cuerda bajada (Z)</h3><div class="value" id="outZ">0.00</div><div class="card-sub" id="outZcm">calibra para ver cm</div></div>
         </div>
 
+        <details class="explica" open>
+            <summary>¿Qué son estas variables y de dónde salen?</summary>
+            <div class="explica-grid">
+                <div>
+                    <h4>PWM (la señal del tambor)</h4>
+                    <p>Es el número del slider del tambor (60 a 120). PWM significa <i>modulación por ancho de pulso</i>: el Arduino le manda al servo pulsos eléctricos, y el ancho del pulso le dice qué hacer.</p>
+                    <p><b>91 a 96</b>: quieto (93 es el freno). <b>Más de 96</b>: sube. <b>Menos de 91</b>: baja. Mientras más lejos de esa zona, más rápido.</p>
+                    <p><b>ΔPWM</b> es qué tan lejos estás de la zona quieta. Ejemplo: PWM 81 ⟹ ΔPWM = 81 − 91 = −10.</p>
+                </div>
+                <div>
+                    <h4>Voltaje E</h4>
+                    <p>Imagina que el motor del tambor es un <b>generador</b>: mientras más rápido gira, más voltaje produce. El Arduino lo calcula así:</p>
+                    <p class="explica-formula">E = |ΔPWM| / 15 · 5 &nbsp;(máximo 5 V)</p>
+                    <p>Con ΔPWM = −10 da 3,33 V. Desde |ΔPWM| = 15 ya da los 5 V completos, como una fuente real de 5 V que no puede dar más. Quieto ⟹ E = 0.</p>
+                </div>
+                <div>
+                    <h4>Carga q</h4>
+                    <p>Ese voltaje E se conecta a un <b>circuito RLC imaginario</b> (bobina L = 1, resistencia R = 2, condensador C = 0,5) que el Arduino simula. q es la carga que se acumula en el condensador.</p>
+                    <p class="explica-formula">q'' + 2q' + 2q = E</p>
+                    <p>Cuando el tambor arranca, q sube poco a poco hasta <b>E/2</b>; al frenar, vuelve a 0. Es la ecuación de 2º orden que se resuelve con Laplace en la Práctica 2.</p>
+                </div>
+                <div>
+                    <h4>θ y Z (la posición)</h4>
+                    <p><b>θ</b> es el ángulo de la base, medido desde la posición inicial.</p>
+                    <p><b>Z</b> es cuánta cuerda se ha soltado desde la posición inicial. El Arduino la calcula con <b>dZ/dt = −0,1·ΔPWM</b> (Práctica 1). Está en unidades del modelo; con la calibración se ve en cm.</p>
+                    <p>Ninguna viene de un sensor: <b>todo lo calcula el Arduino</b> cada 0,1 s a partir del PWM que le mandas.</p>
+                </div>
+            </div>
+        </details>
+
         <div class="graficas">
             <div class="chart-container">
                 <h3 class="titulo-grafica">Cinemática espacial (3D)</h3>
@@ -289,7 +325,7 @@
                     <tbody>
                         <tr><td><b>PWM</b></td><td>Señal que mandas al tambor (slider)</td><td>La eliges tú (60–120)</td><td class="calc" id="v_pwm">—</td><td>Es la entrada; 91–96 es banda muerta (no se mueve)</td></tr>
                         <tr><td><b>ΔPWM</b></td><td>Qué tan lejos estás de la banda muerta</td><td>Se calcula: PWM − 96 (si &gt; 96) o PWM − 91 (si &lt; 91)</td><td class="calc" id="v_dpwm">—</td><td>Más lejos de la banda muerta ⟹ mayor |ΔPWM|</td></tr>
-                        <tr><td><b>E</b> (V)</td><td>Voltaje que entra al circuito RLC</td><td>Lo calcula el Arduino: E = |ΔPWM|/15·5</td><td class="calc" id="v_E">—</td><td id="t_E">—</td></tr>
+                        <tr><td><b>E</b> (V)</td><td>Voltaje que entra al circuito RLC</td><td>Lo calcula el Arduino: E = |ΔPWM|/15·5, máximo 5 V</td><td class="calc" id="v_E">—</td><td id="t_E">—</td></tr>
                         <tr><td><b>q</b></td><td>Carga del circuito (solución de la EDO RLC)</td><td>Lo calcula el Arduino con Euler cada 0.1 s</td><td class="calc" id="v_q">—</td><td id="t_q">—</td></tr>
                         <tr><td><b>Z</b></td><td>Cuerda bajada desde la posición inicial (solución de dZ/dt)</td><td>Lo calcula el Arduino con Euler cada 0.1 s</td><td class="calc" id="v_Z">—</td><td id="t_Z">—</td></tr>
                     </tbody>
@@ -449,7 +485,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
 
             <div class="bloque">
                 <h4>3. Marco teórico</h4>
-                <p>El movimiento del tambor produce un voltaje E = |ΔPWM|/15·5 que excita un circuito RLC en serie, con L = 1, R = 2 y C = 0.5:</p>
+                <p>El movimiento del tambor produce un voltaje E = |ΔPWM|/15·5 (máximo 5 V) que excita un circuito RLC en serie, con L = 1, R = 2 y C = 0.5:</p>
                 <div class="formula clave">L·q'' + R·q' + q/C = E &nbsp;⟹&nbsp; q'' + 2q' + 2q = E</div>
                 <p><b>Paso 1 · Laplace</b> con q(0) = 0, q'(0) = 0 y E constante (L{E} = E/s):</p>
                 <div class="formula">s²Q + 2sQ + 2Q = E/s &nbsp;⟹&nbsp; Q(s) = E / [ s (s² + 2s + 2) ]</div>
@@ -544,7 +580,7 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 <div class="formula">|ΔZ| = 0.1 · |ΔPWM| · t</div>
                 <p>Las unidades del modelo no son centímetros, así que se necesita una <b>escala k</b> (cm por unidad de Z). Se obtiene en el <b>ensayo 1 (calibración)</b>:</p>
                 <div class="formula clave">k = h<sub>medida 1</sub> / |ΔZ<sub>1</sub>| &nbsp;&nbsp;⟹&nbsp;&nbsp; h<sub>teórica</sub> = k · 0.1 · |ΔPWM| · t</div>
-                <p>Con k fija, se <b>predice</b> la altura de los ensayos 2, 3 y 4 y se compara con lo medido. Además, en cada ensayo el Arduino calcula E = |ΔPWM|/15·5 y la carga q del RLC; la teoría de la práctica 2 da q(t) = (E/2)[1 − e<sup>−t</sup>(cos t + sen t)].</p>
+                <p>Con k fija, se <b>predice</b> la altura de los ensayos 2, 3 y 4 y se compara con lo medido. Además, en cada ensayo el Arduino calcula E = |ΔPWM|/15·5 (máximo 5 V) y la carga q del RLC; la teoría de la práctica 2 da q(t) = (E/2)[1 − e<sup>−t</sup>(cos t + sen t)].</p>
             </div>
 
             <div class="bloque">
