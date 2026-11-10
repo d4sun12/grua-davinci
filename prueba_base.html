@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba Servo Base</title>
+<style>
+  :root {
+    --fondo: #f4f6f9; --panel: #ffffff; --borde: #dde3ea; --texto: #1f2933; --sec: #5b6573;
+    --azul: #0056b3; --azul-osc: #004494; --verde: #2e7d32; --rojo: #c62828; --ambar: #b26a00;
+    --pista: #e3e8ef;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fondo: #12161c; --panel: #1b2129; --borde: #2c3540; --texto: #e6eaef; --sec: #9aa5b1;
+      --azul: #5aa2ff; --azul-osc: #3f8cf0; --verde: #66bb6a; --rojo: #ef5350; --ambar: #ffb74d;
+      --pista: #2c3540;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: var(--fondo); color: var(--texto);
+         font-family: "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; display: grid; gap: 14px; }
+  h1 { font-size: 20px; margin: 4px 0 0; }
+  .sub { color: var(--sec); font-size: 14px; margin: 2px 0 0; }
+  .panel { background: var(--panel); border: 1px solid var(--borde); border-radius: 12px; padding: 16px; }
+  .fila { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 600; font-size: 14px; padding: 8px 14px; border-radius: 8px;
+           border: 1px solid var(--azul); background: var(--azul); color: #fff; cursor: pointer; }
+  button:hover { background: var(--azul-osc); }
+  button.sec { background: transparent; color: var(--azul); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .estado { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; font-size: 14px; }
+  .punto { width: 10px; height: 10px; border-radius: 50%; background: var(--sec); }
+  .estado.ok .punto { background: var(--verde); }
+  .estado.mal .punto { background: var(--rojo); }
+  .estado.mal { color: var(--rojo); }
+  input[type=range] { flex: 1; min-width: 160px; accent-color: var(--azul); }
+  input[type=number] { width: 70px; font: inherit; font-weight: 700; font-size: 16px; text-align: center;
+                       padding: 6px; border: 1px solid var(--borde); border-radius: 8px;
+                       background: var(--panel); color: var(--texto); }
+  .medidor { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: center; }
+  svg { width: 100%; max-width: 360px; height: auto; display: block; margin: 0 auto; }
+  .datos { display: grid; gap: 8px; min-width: 150px; }
+  .dato { font-size: 13px; color: var(--sec); }
+  .dato b { display: block; font-size: 22px; color: var(--texto); font-variant-numeric: tabular-nums; }
+  .dato.alerta b { color: var(--rojo); }
+  .leyenda { display: flex; gap: 14px; justify-content: center; font-size: 13px; color: var(--sec); margin-top: 4px; }
+  .leyenda span::before { content: ""; display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: middle; }
+  .l-obj::before { background: var(--sec); }
+  .l-real::before { background: var(--azul); }
+  .titulo { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--sec); margin: 0 0 10px; }
+  #log { font-family: Consolas, monospace; font-size: 12.5px; height: 150px; overflow-y: auto; margin: 0;
+         background: var(--fondo); border: 1px solid var(--borde); border-radius: 8px; padding: 8px; white-space: pre-wrap; }
+  .nota { font-size: 13px; color: var(--sec); line-height: 1.5; margin: 8px 0 0; }
+  @media (max-width: 560px) { .medidor { grid-template-columns: 1fr; } .datos { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Prueba del servo 180° (base)</h1>
+    <p class="sub">Solo el servo en el pin 9. Requiere el sketch <code>grua_davinci_v4.ino</code> subido · Chrome o Edge.</p>
+  </header>
+
+  <section class="panel fila">
+    <button id="btnConectar">🔌 Conectar Arduino</button>
+    <button id="btnDesconectar" class="sec" disabled>Desconectar</button>
+    <span class="estado" id="estado"><span class="punto"></span><span id="estadoTxt">Desconectado</span></span>
+  </section>
+
+  <section class="panel">
+    <p class="titulo">Ángulo</p>
+    <div class="medidor">
+      <div>
+        <svg viewBox="-18 0 256 125" aria-label="Medidor de ángulo">
+          <path d="M 20 110 A 90 90 0 0 1 200 110" fill="none" stroke="var(--pista)" stroke-width="14" stroke-linecap="round"/>
+          <g id="marcas"></g>
+          <line id="agujaObj" x1="110" y1="110" x2="110" y2="30" stroke="var(--sec)" stroke-width="3" stroke-dasharray="5 4" stroke-linecap="round"/>
+          <line id="agujaReal" x1="110" y1="110" x2="110" y2="30" stroke="var(--azul)" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="110" cy="110" r="7" fill="var(--azul)"/>
+        </svg>
+        <div class="leyenda"><span class="l-obj">Pedido</span><span class="l-real">Real (lo reporta el Arduino)</span></div>
+      </div>
+      <div class="datos">
+        <div class="dato">Pedido<b id="dObj">90°</b></div>
+        <div class="dato">Real<b id="dReal">—</b></div>
+        <div class="dato" id="cajaReinicios">Reinicios del Arduino<b id="dReinicios">0</b></div>
+        <div class="dato" id="cajaDatos">Último dato<b id="dUltimo">—</b></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="titulo">Control manual</p>
+    <div class="fila">
+      <input type="range" id="slider" min="10" max="170" value="90">
+      <input type="number" id="num" min="10" max="170" value="90">
+    </div>
+    <div class="fila" style="margin-top:10px">
+      <button class="sec" data-ang="10">10°</button>
+      <button class="sec" data-ang="50">50°</button>
+      <button class="sec" data-ang="90">90°</button>
+      <button class="sec" data-ang="130">130°</button>
+      <button class="sec" data-ang="170">170°</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <p class="titulo">Prueba de saltos</p>
+    <div class="fila">
+      <button id="btnSaltos">▶ Iniciar prueba</button>
+      <button id="btnParar" class="sec" disabled>■ Parar</button>
+      <span id="saltoTxt" class="sub"></span>
+    </div>
+    <p class="nota">Repite 90 → 10 → 90 → 170 → 10. El salto de 170 a 10 (160°) es el que reiniciaba el Arduino con el sketch de prueba.
+      Si con la rampa el contador de reinicios se queda en 0, el problema de los saltos quedó resuelto.</p>
+  </section>
+
+  <section class="panel">
+    <p class="titulo">Registro</p>
+    <pre id="log"></pre>
+  </section>
+</main>
+
+<script>
+  const TAMBOR_FRENO = 93;          // el tambor queda frenado (puede estar desconectado)
+  const $ = id => document.getElementById(id);
+  let port = null, writer = null, reader = null;
+  let objetivo = 90, real = null, inicios = 0, ultimoDato = 0, ultimoEnvio = 0, envioPendiente = null;
+  let seqTimer = null;
+
+  // ---------- Medidor ----------
+  const CX = 110, CY = 110, R = 80;
+  function punta(a, r = R) {                     // 0° a la izquierda, 180° a la derecha
+    const rad = a * Math.PI / 180;
+    return [CX - r * Math.cos(rad), CY - r * Math.sin(rad)];
+  }
+  function moverAguja(id, a) {
+    const [x, y] = punta(a);
+    $(id).setAttribute('x2', x.toFixed(1)); $(id).setAttribute('y2', y.toFixed(1));
+  }
+  (function dibujarMarcas() {
+    let s = '';
+    for (const a of [10, 50, 90, 130, 170]) {
+      const [x1, y1] = punta(a, 92), [x2, y2] = punta(a, 104), [tx, ty] = punta(a, 116);
+      s += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--sec)" stroke-width="1.5"/>`;
+      s += `<text x="${tx}" y="${Math.min(ty + 4, 122)}" font-size="10" fill="var(--sec)" text-anchor="middle">${a}</text>`;
+    }
+    $('marcas').innerHTML = s;
+  })();
+  moverAguja('agujaObj', 90); moverAguja('agujaReal', 90);
+
+  // ---------- Registro ----------
+  function log(msg) {
+    const t = new Date().toLocaleTimeString();
+    const el = $('log');
+    el.textContent += `[${t}] ${msg}\n`;
+    const lineas = el.textContent.split('\n');
+    if (lineas.length > 200) el.textContent = lineas.slice(-200).join('\n');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  // ---------- Envío ----------
+  const enc = new TextEncoder();
+  function enviar() {
+    if (!writer) return;
+    const ahora = Date.now();
+    if (ahora - ultimoEnvio < 50) {                // máx. 20 envíos/s, el último nunca se pierde
+      if (!envioPendiente) envioPendiente = setTimeout(() => { envioPendiente = null; enviar(); }, 50 - (ahora - ultimoEnvio));
+      return;
+    }
+    ultimoEnvio = ahora;
+    writer.write(enc.encode(`${objetivo},${TAMBOR_FRENO}\n`)).catch(e => log('Error al enviar: ' + e.message));
+  }
+  function fijarObjetivo(a, registrar = false) {
+    a = Math.max(10, Math.min(170, Math.round(Number(a))));
+    if (!Number.isFinite(a)) return;
+    objetivo = a;
+    $('slider').value = a; $('num').value = a;
+    $('dObj').textContent = a + '°';
+    moverAguja('agujaObj', a);
+    if (registrar) log(`Pedido → ${a}°`);
+    enviar();
+  }
+  $('slider').addEventListener('input', e => fijarObjetivo(e.target.value));
+  $('slider').addEventListener('change', e => log(`Pedido → ${e.target.value}°`));
+  $('num').addEventListener('change', e => fijarObjetivo(e.target.value, true));
+  document.querySelectorAll('[data-ang]').forEach(b => b.addEventListener('click', () => fijarObjetivo(b.dataset.ang, true)));
+  setInterval(() => { if (writer) { ultimoEnvio = 0; enviar(); } }, 500);   // latido
+
+  // ---------- Conexión ----------
+  async function conectar() {
+    if (!('serial' in navigator)) { alert('Este navegador no tiene Web Serial. Abre la página en Chrome o Edge.'); return; }
+    try {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 9600 });
+    } catch (e) { port = null; log('No se pudo conectar: ' + e.message); return; }
+    writer = port.writable.getWriter();
+    inicios = 0; ultimoDato = Date.now(); real = null;
+    $('dReinicios').textContent = '0';
+    $('btnConectar').disabled = true; $('btnDesconectar').disabled = false;
+    log('Conectado. El Arduino se reinicia al abrir el puerto (eso es normal).');
+    leer();
+  }
+  async function leer() {
+    const dec = new TextDecoderStream();
+    const cierre = port.readable.pipeTo(dec.writable).catch(() => {});
+    reader = dec.readable.getReader();
+    let buf = '';
+    try {
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += value;
+        const lineas = buf.split('\n');
+        buf = lineas.pop();
+        for (const l of lineas) procesar(l.trim());
+      }
+    } catch (e) { log('Lectura interrumpida: ' + e.message); }
+    try { reader.releaseLock(); } catch (e) {}
+    await cierre;
+  }
+  function procesar(l) {
+    if (!l) return;
+    ultimoDato = Date.now();
+    if (l.includes('INICIO')) {
+      inicios++;
+      if (inicios > 1) {
+        log(`⚠ El Arduino se REINICIÓ (pedido: ${objetivo}°, real antes: ${real ?? '—'}°). Caída de voltaje.`);
+        $('dReinicios').textContent = inicios - 1;
+        $('cajaReinicios').classList.add('alerta');
+      }
+      return;
+    }
+    const p = l.split(',');
+    if (p.length !== 4) return;
+    const a = Number(p[3]);
+    if (!Number.isFinite(a)) return;
+    real = a;
+    $('dReal').textContent = a + '°';
+    moverAguja('agujaReal', a);
+  }
+  async function desconectar() {
+    pararSaltos();
+    try { if (reader) await reader.cancel(); } catch (e) {}
+    try { if (writer) { writer.releaseLock(); } } catch (e) {}
+    try { if (port) await port.close(); } catch (e) {}
+    port = writer = reader = null;
+    $('btnConectar').disabled = false; $('btnDesconectar').disabled = true;
+    log('Desconectado.');
+  }
+  $('btnConectar').addEventListener('click', conectar);
+  $('btnDesconectar').addEventListener('click', desconectar);
+  if ('serial' in navigator) navigator.serial.addEventListener('disconnect', () => { log('⚠ El cable USB se desconectó o el Arduino desapareció.'); desconectar(); });
+
+  // ---------- Estado (cada 0.5 s) ----------
+  setInterval(() => {
+    const est = $('estado');
+    if (!writer) { est.className = 'estado'; $('estadoTxt').textContent = 'Desconectado'; $('dUltimo').textContent = '—'; return; }
+    const hace = Date.now() - ultimoDato;
+    $('dUltimo').textContent = hace < 1000 ? 'ahora' : (hace / 1000).toFixed(1) + ' s';
+    const caido = hace > 1500;
+    $('cajaDatos').classList.toggle('alerta', caido);
+    est.className = 'estado ' + (caido ? 'mal' : 'ok');
+    $('estadoTxt').textContent = caido ? 'Sin datos del Arduino' : 'Conectado';
+  }, 500);
+
+  // ---------- Prueba de saltos ----------
+  const SECUENCIA = [90, 10, 90, 170, 10];
+  function iniciarSaltos() {
+    if (!writer) { alert('Primero conecta el Arduino.'); return; }
+    if (seqTimer) return;
+    let i = 0, vuelta = 1;
+    const reiniciosAntes = Math.max(0, inicios - 1);
+    $('btnSaltos').disabled = true; $('btnParar').disabled = false;
+    log('Prueba de saltos iniciada.');
+    const paso = () => {
+      const a = SECUENCIA[i];
+      fijarObjetivo(a, true);
+      $('saltoTxt').textContent = `Vuelta ${vuelta} · ir a ${a}°`;
+      i++;
+      if (i === SECUENCIA.length) {
+        i = 0; vuelta++;
+        const nuevos = Math.max(0, inicios - 1) - reiniciosAntes;
+        log(`Vuelta completa · reinicios en la prueba: ${nuevos}`);
+      }
+    };
+    paso();
+    seqTimer = setInterval(paso, 3000);    // 160° con rampa ≈ 2.4 s
+  }
+  function pararSaltos() {
+    if (seqTimer) { clearInterval(seqTimer); seqTimer = null; log('Prueba de saltos detenida.'); }
+    $('btnSaltos').disabled = false; $('btnParar').disabled = true;
+    $('saltoTxt').textContent = '';
+  }
+  $('btnSaltos').addEventListener('click', iniciarSaltos);
+  $('btnParar').addEventListener('click', pararSaltos);
+</script>
+</body>
+</html>
