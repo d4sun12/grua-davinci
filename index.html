@@ -65,6 +65,12 @@
         .graficas { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-top: 16px; }
         .chart-container { padding: 14px 16px 16px; border: 1px solid var(--borde); border-radius: 12px; background: #fff; text-align: left; }
         #grafica3D, #canvas-wrap { width: 100%; height: 380px; }
+        .coords { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-top: 8px; padding: 8px 12px; background: var(--fondo); border: 1px solid var(--borde); border-radius: 8px; font-size: 13px; color: var(--texto-sec); }
+        .coords b { color: var(--texto); font-size: 15px; font-variant-numeric: tabular-nums; margin-left: 3px; }
+        .coords-estado { margin-left: auto; font-weight: 600; color: var(--texto-sec); }
+        .coords-estado.en-origen { color: var(--verde); }
+        .link-guia { color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; padding: 6px 10px; border-radius: 7px; opacity: .9; }
+        .link-guia:hover { background: rgba(255,255,255,0.12); opacity: 1; }
         
         /* Oculté la sección de autoprueba para evitar más cruces innecesarios, enfocados en manual */
         #autoprueba { display: none; }
@@ -178,6 +184,7 @@
                 </div>
             </div>
             <div class="acciones-top">
+                <a class="link-guia" href="guia_usuario.pdf" download title="Descargar la guía de usuario en PDF">📄 Guía de usuario (PDF)</a>
                 <span class="estado-conexion" id="estadoConexion"><span class="punto"></span><span id="estadoTexto">Desconectado</span></span>
                 <button class="btn-claro" onclick="conectarSerial()">🔌 Conectar Arduino</button>
                 <button class="btn-borde" onclick="fijarCero()">🎯 Fijar Origen (0,0,0)</button>
@@ -218,6 +225,13 @@
             <div class="chart-container">
                 <h3 class="titulo-grafica">Cinemática espacial (3D)</h3>
                 <div id="grafica3D"></div>
+                <div class="coords">
+                    <span>X <b id="cX">0.00</b></span>
+                    <span>Y <b id="cY">0.00</b></span>
+                    <span>Z <b id="cZ">0.00</b></span>
+                    <span>θ <b id="cB">0.0°</b></span>
+                    <span class="coords-estado en-origen" id="cEstado">● En el origen (0, 0, 0)</span>
+                </div>
             </div>
             <div class="chart-container">
                 <h3 class="titulo-grafica">Comportamiento eléctrico RLC (Et / q)</h3>
@@ -569,7 +583,10 @@ elevacionZ += (diferenciaVel * -0.01);</div>
     <!-- ===================== JAVASCRIPT PRINCIPAL ===================== -->
     <script>
         let port, reader, writer;
-        let offsetZ = 0, offsetBase = 0;
+        // Origen del dibujo 3D: por defecto la posición inicial de la grúa (base en 90°, Z = 0).
+        // "Fijar origen" lo cambia a la posición actual. En el origen el gancho se dibuja en (0,0,0).
+        const BASE_INICIAL = 90;
+        let offsetZ = 0, offsetBase = BASE_INICIAL;
         let lecturaCrudaZ = 0, lecturaCrudaBase = 0;
         let ultimoE = null, ultimoQ = null;   // últimos valores de telemetría (para la guía)
         const R_BRAZO = 10;
@@ -585,8 +602,10 @@ elevacionZ += (diferenciaVel * -0.01);</div>
             if (!Number.isFinite(lecturaCrudaZ) || !Number.isFinite(lecturaCrudaBase)) { alert('Aún no llega telemetría válida del Arduino.'); return; }
             offsetZ = lecturaCrudaZ;
             offsetBase = lecturaCrudaBase;
-            xArr = []; yArr = []; zArr = [];
-            Plotly.update('grafica3D', { x: [[0]], y: [[0]], z: [[0]] });
+            xArr = [0]; yArr = [0]; zArr = [0];
+            ultimaPos = { X: 0, Y: 0, Z: 0, B: 0 };
+            if (ultimaLectura) { ultimaLectura.Z = 0; ultimaLectura.B = 0; }
+            pedirRender();
             alert("¡Sistema tarado exitosamente en (0,0,0)!");
         }
 
@@ -647,16 +666,41 @@ elevacionZ += (diferenciaVel * -0.01);</div>
         }, 500);
 
         // ====== 2. GRÁFICAS ======
+        // Ejes simétricos para que el origen (0,0,0) quede siempre en el centro del cubo.
+        // X e Y: desplazamiento del gancho respecto al origen (máx. 2·R_BRAZO). Z: elevación relativa (−50..50).
         let layout3D = {
             margin: { l: 0, r: 0, b: 0, t: 0 },
             showlegend: false,
             scene: {
-                xaxis: { title: 'X', range: [-15, 15] },
-                yaxis: { title: 'Y', range: [-15, 15] },
-                zaxis: { title: 'Z', range: [-15, 15] }
+                xaxis: { title: 'X', range: [-22, 22], zeroline: true },
+                yaxis: { title: 'Y', range: [-22, 22], zeroline: true },
+                zaxis: { title: 'Z', range: [-52, 52], zeroline: true },
+                aspectmode: 'cube'
             }
         };
-        Plotly.newPlot('grafica3D', [{ x: [0], y: [0], z: [0], mode: 'lines+markers', marker: { size: 6, color: 'red' }, type: 'scatter3d' }], layout3D, {responsive: true});
+        let ultimaPos = { X: 0, Y: 0, Z: 0, B: 0 };
+        const fmtCoord = v => (Math.abs(v) < 0.005 ? 0 : v).toFixed(2);
+        Plotly.newPlot('grafica3D', [
+            // 0: recorrido reciente
+            { x: [0], y: [0], z: [0], mode: 'lines', line: { color: '#ef9a9a', width: 4 }, type: 'scatter3d', hoverinfo: 'skip' },
+            // 1: posición actual del gancho, con sus coordenadas
+            { x: [0], y: [0], z: [0], mode: 'markers+text', marker: { size: 7, color: 'red' }, type: 'scatter3d',
+              text: ['(0.00, 0.00, 0.00)'], textposition: 'top center', textfont: { size: 12, color: '#c62828' },
+              hovertemplate: 'X = %{x:.2f}<br>Y = %{y:.2f}<br>Z = %{z:.2f}<extra>Gancho</extra>' },
+            // 2: origen fijo
+            { x: [0], y: [0], z: [0], mode: 'markers+text', marker: { size: 4, color: '#1f2933', symbol: 'diamond' }, type: 'scatter3d',
+              text: ['Origen'], textposition: 'bottom center', textfont: { size: 11, color: '#5b6573' }, hoverinfo: 'skip' }
+        ], layout3D, {responsive: true});
+        function actualizarCoords() {
+            const P = ultimaPos;
+            document.getElementById('cX').textContent = fmtCoord(P.X);
+            document.getElementById('cY').textContent = fmtCoord(P.Y);
+            document.getElementById('cZ').textContent = fmtCoord(P.Z);
+            document.getElementById('cB').textContent = (Math.abs(P.B) < 0.05 ? 0 : P.B).toFixed(1) + '°';
+            const enOrigen = Math.abs(P.X) < 0.05 && Math.abs(P.Y) < 0.05 && Math.abs(P.Z) < 0.05;
+            document.getElementById('cEstado').textContent = enOrigen ? '● En el origen (0, 0, 0)' : 'Fuera del origen';
+            document.getElementById('cEstado').classList.toggle('en-origen', enOrigen);
+        }
 
         const ctx = document.getElementById('realtimeChart').getContext('2d');
         const realtimeChart = new Chart(ctx, {
@@ -674,7 +718,10 @@ elevacionZ += (diferenciaVel * -0.01);</div>
         // y el 3D (WebGL, el más pesado) solo cuando está visible en pantalla.
         let ultimaLectura = null, renderPendiente = false, ultimoRender = 0;
         const visibles = new Set();
-        const obsVis = new IntersectionObserver(ents => ents.forEach(e => e.isIntersecting ? visibles.add(e.target.id) : visibles.delete(e.target.id)));
+        const obsVis = new IntersectionObserver(ents => ents.forEach(e => {
+            if (e.isIntersecting) { visibles.add(e.target.id); pedirRender(); }   // al volver a verse, se pone al día
+            else visibles.delete(e.target.id);
+        }));
         ['grafica3D', 'realtimeChart', 'graficaVivo'].forEach(id => { const el = document.getElementById(id); if (el) obsVis.observe(el); });
         function pedirRender() {
             if (renderPendiente) return;
@@ -692,7 +739,14 @@ elevacionZ += (diferenciaVel * -0.01);</div>
                 document.getElementById('outZ').textContent = L.Z.toFixed(2);
                 document.getElementById('outBase').textContent = L.B.toFixed(1) + "°";
             }
-            if (visibles.has('grafica3D')) Plotly.restyle('grafica3D', { x: [xArr.slice()], y: [yArr.slice()], z: [zArr.slice()] });
+            actualizarCoords();
+            if (visibles.has('grafica3D')) {
+                const P = ultimaPos;
+                Plotly.restyle('grafica3D', {
+                    x: [xArr.slice(), [P.X]], y: [yArr.slice(), [P.Y]], z: [zArr.slice(), [P.Z]],
+                    text: [null, [`(${fmtCoord(P.X)}, ${fmtCoord(P.Y)}, ${fmtCoord(P.Z)})`]]
+                }, [0, 1]);
+            }
             if (visibles.has('realtimeChart')) realtimeChart.update('none');
             if (typeof dibujarVivo === 'function') dibujarVivo(visibles.has('graficaVivo'));
         }
@@ -762,9 +816,11 @@ elevacionZ += (diferenciaVel * -0.01);</div>
 
                             ultimaLectura = { E, Q, Z: Z_relativo, B: Base_relativa };
 
-                            let rad = lecturaCrudaBase * (Math.PI / 180);
-                            let X = R_BRAZO * Math.cos(rad);
-                            let Y = R_BRAZO * Math.sin(rad);
+                            // Posición del gancho medida desde el origen: en el origen da exactamente (0,0,0)
+                            let rad = lecturaCrudaBase * (Math.PI / 180), rad0 = offsetBase * (Math.PI / 180);
+                            let X = R_BRAZO * (Math.cos(rad) - Math.cos(rad0));
+                            let Y = R_BRAZO * (Math.sin(rad) - Math.sin(rad0));
+                            ultimaPos = { X, Y, Z: Z_relativo, B: Base_relativa };
 
                             xArr.push(X); yArr.push(Y); zArr.push(Z_relativo);
                             if (xArr.length > 50) { xArr.shift(); yArr.shift(); zArr.shift(); }
